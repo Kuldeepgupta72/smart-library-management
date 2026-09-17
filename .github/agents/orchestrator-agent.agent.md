@@ -12,12 +12,13 @@ Master controller managing the complete Agentic SDLC Pipeline for Jira story AIS
 
 ## How to Activate
 
-Select this agent from the Copilot Chat agent picker, then give it a story ID: AISDLC-{{NUMBER}}. Or give it nothing to browse the backlog first. These two entry points are unchanged and do not require Stage 0 or Gap Scanner. Optionally, if there's no existing story yet, describe the gap/enhancement directly in chat to trigger the optional Stage 0 (human-approved Jira story creation) first — it hands off into the same Stage 1a flow once the story exists. Optionally, even earlier, ask to scan the repo for enhancements to trigger Gap Scanner Agent first — it presents grounded candidates and hands picked ones to Stage 0 one at a time.
+Select this agent from the Copilot Chat agent picker, then give it a story ID: AISDLC-{{NUMBER}}. Or give it nothing to browse the backlog first. These two entry points are unchanged. Optionally, if there's no existing story yet, describe the gap/enhancement directly in chat to trigger the optional Stage 0 (human-approved Jira story creation) first — it hands off into the same Stage 1a flow once the story exists. You can also explicitly ask to scan the repo for enhancements to trigger Gap Scanner Agent — but you don't have to: if Backlog Mode's live query comes back with zero open stories, Gap Scanner Agent triggers automatically (it's read-only against the repo, so this doesn't skip any human confirmation — Stage 0's create step is still fully human-gated).
 
 ## Pipeline Overview (ASCII)
 
 ```
-(optional) Human asks to scan the repo for enhancements
+(optional) Human asks to scan the repo, OR AUTOMATIC when Backlog
+           Mode's live query returns zero open stories
          │
          ▼
 ┌────────────────────────┐
@@ -108,7 +109,8 @@ AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points
 
 ## All Stage Agents
 
--   Gap Scanner (optional, before Stage 0): .github/agents/gap-scanner-agent.agent.md
+-   Gap Scanner (optional before Stage 0, auto-triggered by Stage 1a
+    Backlog Mode on zero open stories): .github/agents/gap-scanner-agent.agent.md
     — repo-only, never calls Jira directly
 -   Stage 0 (optional): .github/agents/jira-agent.agent.md (same
     agent as Stage 1a — see its Stage 0 section)
@@ -135,7 +137,8 @@ AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points
 
 ## Context Flow Between Stages
 
--   Gap Scanner (optional) → ranked list of grounded candidates, human picks zero or more → each picked candidate feeds into Stage 0 one at a time (title + description only — Gap Scanner never touches Jira itself)
+-   Stage 1a Backlog Mode with zero results → triggers Gap Scanner automatically (no human request needed for the scan itself, since it's repo-only, read-only)
+-   Gap Scanner (optional or auto-triggered) → ranked list of grounded candidates, human picks zero or more → each picked candidate feeds into Stage 0 one at a time (title + description only — Gap Scanner never touches Jira itself)
 -   Stage 0 (optional) → new AISDLC-{{NUMBER}} story ID, or an existing matched story ID (dedup hit — no duplicate created) → feeds directly into Stage 1a (Single Story Mode), same as any human-provided story ID
 -   Stage 1a → story ID + fetched Jira details → used by Stage 1b-3
 -   Stage 1b-3 (Documentation Agent) → docs/{{STORY_ID}}/ requirements-{{STORY_ID}}.md, impl-plan-{{STORY_ID}}.md, design-{{STORY_ID}}.md → used by Stage 4 (each subagent's file also feeds the next subagent: requirements feeds planner, both feed design). Planner Subagent additionally commits requirements + plan and opens the one Dev PR (partial body) once approved; Design Subagent additionally publishes a Confluence Design page once approved.
@@ -149,9 +152,9 @@ AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points
 
 ## Human Checkpoints Detail
 
-### Gap Scanner (optional)
+### Gap Scanner (optional, or automatic on an empty backlog)
 
-Chat-based: human picks which candidate(s) from the ranked list to pursue, if any. Each pick is handed off individually to Stage 0 — picking a candidate here is not itself an APPROVE for creating a Jira issue; that happens in Stage 0's own checkpoint below.
+The scan itself needs no human trigger when it auto-fires on a zero-result Backlog Mode query (repo-only, read-only, no external action). Chat-based checkpoint that does exist: human picks which candidate(s) from the ranked list to pursue, if any. Each pick is handed off individually to Stage 0 — picking a candidate here is not itself an APPROVE for creating a Jira issue; that happens in Stage 0's own checkpoint below.
 
 ### Stage 0 — Create Story (optional)
 

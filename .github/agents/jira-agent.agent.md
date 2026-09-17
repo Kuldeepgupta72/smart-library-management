@@ -24,6 +24,9 @@ hands off a chosen story.
 - **Stage 1a:** human asks to see the backlog / to-do stories, gives
   no story ID, or gives a story ID directly: AISDLC-{{NUMBER}}. This
   entry point is unchanged and does not require Stage 0 to have run.
+  If Backlog Mode's query comes back empty, Gap Scanner Agent is
+  triggered automatically (see Backlog Mode Step 3) — no explicit
+  human request needed for the scan itself.
 
 ## Skills Used
 - .github/skills/jira-reader.md
@@ -76,9 +79,20 @@ hands off a chosen story.
 2. Query backlog (jira-reader Mode 2): all AISDLC issues not Done,
    filtered to issuetype=Story only — never show Sub-tasks, Tasks,
    or Bugs in this list
-3. Present numbered list grouped by Epic (story ID, summary, status)
-4. Ask human which story ID to develop next
-5. Once chosen, proceed to Single Story Mode with that ID
+3. If the query returns zero results: automatically hand off to Gap
+   Scanner Agent — no separate human request needed to trigger it,
+   since scanning is read-only against the repo only (no Jira write,
+   so this auto-trigger doesn't cross Rule 6's "nothing external
+   proceeds without human confirmation" boundary). Present whatever
+   Gap Scanner Agent returns; the human still explicitly picks which
+   candidate(s), if any, to send into Stage 0 — that pick, and
+   Stage 0's own APPROVE, remain human-gated exactly as before. If
+   the human doesn't want to scan right now, they can say so instead
+   of picking a candidate.
+4. If the query returns results: present numbered list grouped by
+   Epic (story ID, summary, status)
+5. Ask human which story ID to develop next
+6. Once chosen, proceed to Single Story Mode with that ID
 
 ### Single Story Mode (story ID given)
 1. Confirm story ID matches format AISDLC-{{NUMBER}}

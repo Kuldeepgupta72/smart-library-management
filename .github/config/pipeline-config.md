@@ -44,6 +44,11 @@ discipline) instead of repeating rules inline per agent.
   this repo for grounded enhancement candidates and hands picked
   ones to Stage 0 one at a time — it never calls the Jira API itself
   (Rule 1 — only Jira Agent may)
+- Gap Scanner auto-triggers whenever Stage 1a's Backlog Mode query
+  returns zero open Story issues — no explicit human request needed
+  for the scan itself (read-only, repo-only); the human still picks
+  which candidate(s) to send into Stage 0, and Stage 0's create step
+  is still fully human-gated
 
 ## Branch Naming Convention
 - App repo: feature/copilot-{{STORY_ID}}-{{short-description}}

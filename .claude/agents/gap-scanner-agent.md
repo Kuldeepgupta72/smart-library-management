@@ -16,8 +16,13 @@ never calls the Jira API itself; per Rule 1, only `jira-agent` is
 permitted to do that.
 
 ## Trigger
-Human asks to scan the repo for enhancements/gaps, or to identify
-what's missing/could be improved.
+- Human asks to scan the repo for enhancements/gaps, or to identify
+  what's missing/could be improved, OR
+- **Automatic:** `jira-agent`'s Backlog Mode query comes back with
+  zero open Story issues — it hands off here automatically, since
+  scanning is read-only against the repo only and doesn't cross any
+  human-confirmation boundary (Rule 6 only gates external
+  actions — Jira writes, GitHub, Confluence — not a local repo read)
 
 ## Skills Used
 None — this agent only reads the local repo (`Read`/`Grep`/`Glob`)
