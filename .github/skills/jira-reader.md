@@ -48,6 +48,23 @@ Steps:
 3. Return numbered list grouped by Epic for human to choose from
 4. This mode is READ-ONLY — never creates or modifies issues
 
+### Mode 4 — Search by Title (dedup check before drafting/creating)
+Input: a candidate title (e.g. from gap-scanner-agent or a human's
+Stage 0 description)
+Steps:
+1. Build auth header: Basic base64(JIRA_EMAIL:JIRA_API_TOKEN)
+2. GET {{JIRA_URL}}/rest/api/3/search/jql
+   ?jql=project="AISDLC" AND summary ~ "\"{{candidate_title}}\""
+   (the escaped double-quotes force Jira's text search to match the
+   quoted phrase as a whole — this is an exact/near-exact phrase
+   match, not a loose keyword/OR match, so a genuinely different
+   story is never mistaken for a duplicate)
+3. Return matches: list of {story_id, summary, status} — empty list
+   if no near-exact match found
+4. This mode is READ-ONLY — never creates or modifies issues. It
+   only informs whether Stage 0 should skip straight to presenting
+   an existing match instead of drafting a new Story.
+
 ### Mode 3 — Create Story (the one write exception, human-approved only)
 Input: human-approved title, description, acceptance_criteria (from
 jira-agent's optional Stage 0 — never invoke this mode without a
@@ -67,12 +84,13 @@ status, assignee, story_id
 Mode 2: list of {epic, story_id, summary, status} grouped by epic
 — Story-type issues only, no sub-tasks
 Mode 3: new story_id and its URL
+Mode 4: list of {story_id, summary, status} matches, or empty list
 
 ## Error Handling
 - 401 Unauthorized: → "Check JIRA_API_TOKEN in your .env file"
 - 404 Not Found: → "Story AISDLC-{{NUMBER}} not found.
   Verify story exists in AISDLC project"
-- 400 Bad Request (Mode 1/2): → "Invalid request. Check JIRA_URL format"
+- 400 Bad Request (Mode 1/2/4): → "Invalid request. Check JIRA_URL format"
 - 400/422 Bad Request (Mode 3 — create payload rejected): →
   "Story creation failed — check the project/issuetype fields are
   valid for this Jira instance"

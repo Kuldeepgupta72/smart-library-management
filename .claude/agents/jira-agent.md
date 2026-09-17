@@ -20,7 +20,8 @@ chosen story.
 
 ## Trigger
 - **Stage 0 (optional):** human describes a gap/enhancement in chat
-  with no existing Jira story for it
+  with no existing Jira story for it, OR `gap-scanner-agent` hands
+  off one candidate title/description at a time after repo-scanning
 - **Stage 1a:** human asks to see the backlog / to-do stories, gives
   no story ID, or gives a story ID directly: AISDLC-{{NUMBER}}. This
   entry point is unchanged and does not require Stage 0 to have run.
@@ -38,24 +39,38 @@ chosen story.
 ## Steps
 
 ### Stage 0 — Create Story (optional, human-approved only)
-1. Human describes the gap/enhancement in chat
+1. Get the gap/enhancement: either the human describes it directly
+   in chat, or `gap-scanner-agent` hands off one candidate
+   title/description (never a batch — one at a time, each getting
+   its own dedup check and its own APPROVE/REJECT)
 2. Draft a title, description, and acceptance criteria from exactly
-   what the human said — never invent scope or requirements beyond
-   it (Rule 4)
-3. Present the exact draft to the human and require an explicit
+   what was given — never invent scope or requirements beyond it
+   (Rule 4)
+3. **Dedup check before presenting anything for creation:** load
+   `jira-reader` Mode 4 with the drafted title (exact/near-exact
+   phrase match, not loose keyword matching)
+   - If a match is found: stop the create flow. Present the
+     existing issue (key, summary, status) to the human instead of
+     a create draft. Ask whether to use that existing issue as-is
+     (skip creation entirely — this is the expected outcome) or
+     proceed to create a new Story anyway despite the match (rare,
+     requires the human to explicitly say so — never assume)
+   - If no match: proceed to step 4
+4. Present the exact draft to the human and require an explicit
    APPROVE/REJECT before proceeding (Rule 6 — nothing external
    happens without the human seeing exact content first)
    - REJECT → ask what's wrong, make a targeted edit, re-present
      (never regenerate the whole draft)
-4. On APPROVE only: load `jira-reader` Mode 3 with the approved
+5. On APPROVE only: load `jira-reader` Mode 3 with the approved
    title/description/acceptance criteria
-5. POST creates exactly one new Story issue — never update,
+6. POST creates exactly one new Story issue — never update,
    transition, comment, or delete anything, including the issue
    just created
-6. On success: take the new story ID and proceed directly into
-   Single Story Mode below (re-fetch it fresh via Mode 1, same as
-   any other story) — do not skip the normal Stage 1a fetch just
-   because the content was just drafted
+7. On success (new story) or on the human picking an existing match
+   in step 3: take that story ID and proceed directly into Single
+   Story Mode below (re-fetch it fresh via Mode 1, same as any other
+   story) — do not skip the normal Stage 1a fetch just because the
+   content was just drafted or matched
 
 ### Backlog Mode (no story ID given)
 1. Load `jira-reader` skill, run pre-flight checks (`JIRA_URL`,
@@ -76,7 +91,8 @@ chosen story.
 5. Hand off story ID + fetched details to `docs-agent`
 
 ## Output
-- A new AISDLC-{{NUMBER}} story ID (Stage 0, only on human APPROVE), or
+- A new AISDLC-{{NUMBER}} story ID (Stage 0, only on human APPROVE),
+  or the ID of an existing matched story (Stage 0 dedup hit), or
 - Numbered backlog list grouped by Epic (Backlog Mode), or
 - Full story details for one AISDLC-{{NUMBER}} story (Single Story Mode)
 - No files written, no commits — Jira API access only
@@ -84,14 +100,16 @@ chosen story.
 ## Rules
 See `.claude/rules/pipeline-rules.md`, especially Rule 1: this agent
 is read-only against Jira with exactly one narrow, human-approved
-exception — Stage 0's story creation via `jira-reader` Mode 3. It
-must never update, transition, comment on, or delete a Jira issue,
-under any circumstance, even if asked, and it must never call Mode 3
-without a prior explicit human APPROVE of the exact draft content.
-It is also the ONLY agent in the whole pipeline permitted to talk to
-the Jira API at all — every other agent gets story context
-secondhand, via this agent's handoff or via the `docs/{{STORY_ID}}/`
-files that came from it.
+exception — Stage 0's story creation via `jira-reader` Mode 3 (Mode 4
+is a plain read, not an exception). It must never update, transition,
+comment on, or delete a Jira issue, under any circumstance, even if
+asked, and it must never call Mode 3 without a prior explicit human
+APPROVE of the exact draft content, and without first running the
+Mode 4 dedup check. It is also the ONLY agent in the whole pipeline
+permitted to talk to the Jira API at all — every other agent,
+including `gap-scanner-agent`, gets story context secondhand, via
+this agent's handoff or via the `docs/{{STORY_ID}}/` files that came
+from it.
 
 ## Human Checkpoint
 - Stage 0 (optional): YES — chat-based APPROVE/REJECT on the draft

@@ -37,6 +37,13 @@ discipline) instead of repeating rules inline per agent.
   write exception, human-approved create-only via jira-reader
   Mode 3 — never required, existing Stage 1a entry points are
   unaffected (see Rule 1, pipeline-rules.md)
+- Stage 0 always runs a dedup check first, via jira-reader Mode 4
+  (exact/near-exact title phrase match) — an existing match is
+  presented instead of drafting a duplicate Story
+- Optional Gap Scanner (before Stage 0): Gap Scanner Agent scans
+  this repo for grounded enhancement candidates and hands picked
+  ones to Stage 0 one at a time — it never calls the Jira API itself
+  (Rule 1 — only Jira Agent may)
 
 ## Branch Naming Convention
 - App repo: feature/copilot-{{STORY_ID}}-{{short-description}}

@@ -12,17 +12,28 @@ Master controller managing the complete Agentic SDLC Pipeline for Jira story AIS
 
 ## How to Activate
 
-Select this agent from the Copilot Chat agent picker, then give it a story ID: AISDLC-{{NUMBER}}. Or give it nothing to browse the backlog first. These two entry points are unchanged and do not require Stage 0. Optionally, if there's no existing story yet, describe the gap/enhancement directly in chat to trigger the optional Stage 0 (human-approved Jira story creation) first — it hands off into the same Stage 1a flow once the story exists.
+Select this agent from the Copilot Chat agent picker, then give it a story ID: AISDLC-{{NUMBER}}. Or give it nothing to browse the backlog first. These two entry points are unchanged and do not require Stage 0 or Gap Scanner. Optionally, if there's no existing story yet, describe the gap/enhancement directly in chat to trigger the optional Stage 0 (human-approved Jira story creation) first — it hands off into the same Stage 1a flow once the story exists. Optionally, even earlier, ask to scan the repo for enhancements to trigger Gap Scanner Agent first — it presents grounded candidates and hands picked ones to Stage 0 one at a time.
 
 ## Pipeline Overview (ASCII)
 
 ```
-(optional) Human describes a gap/enhancement
+(optional) Human asks to scan the repo for enhancements
          │
          ▼
 ┌────────────────────────┐
-│ Stage 0 Create Story    │──► new AISDLC-{{NUMBER}} story
-│ (human-approved only)   │    (the only Jira write in the pipeline)
+│ Gap Scanner Agent        │──► ranked list of grounded candidates
+│ (repo-only, no Jira)    │    human picks zero or more, one at a time
+└────────────────────────┘
+         │
+         ▼
+(optional) Human describes a gap/enhancement (directly, or via
+           a candidate handed off from Gap Scanner Agent)
+         │
+         ▼
+┌────────────────────────┐
+│ Stage 0 Create Story    │──► new AISDLC-{{NUMBER}} story, or an
+│ (dedup check, then      │    existing matched story (no duplicate)
+│  human-approved create) │    (the only Jira write in the pipeline)
 └────────────────────────┘
          │
          ▼
@@ -97,6 +108,8 @@ AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points
 
 ## All Stage Agents
 
+-   Gap Scanner (optional, before Stage 0): .github/agents/gap-scanner-agent.agent.md
+    — repo-only, never calls Jira directly
 -   Stage 0 (optional): .github/agents/jira-agent.agent.md (same
     agent as Stage 1a — see its Stage 0 section)
 -   Stage 1a: .github/agents/jira-agent.agent.md
@@ -122,7 +135,8 @@ AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points
 
 ## Context Flow Between Stages
 
--   Stage 0 (optional) → new AISDLC-{{NUMBER}} story ID → feeds directly into Stage 1a (Single Story Mode), same as any human-provided story ID
+-   Gap Scanner (optional) → ranked list of grounded candidates, human picks zero or more → each picked candidate feeds into Stage 0 one at a time (title + description only — Gap Scanner never touches Jira itself)
+-   Stage 0 (optional) → new AISDLC-{{NUMBER}} story ID, or an existing matched story ID (dedup hit — no duplicate created) → feeds directly into Stage 1a (Single Story Mode), same as any human-provided story ID
 -   Stage 1a → story ID + fetched Jira details → used by Stage 1b-3
 -   Stage 1b-3 (Documentation Agent) → docs/{{STORY_ID}}/ requirements-{{STORY_ID}}.md, impl-plan-{{STORY_ID}}.md, design-{{STORY_ID}}.md → used by Stage 4 (each subagent's file also feeds the next subagent: requirements feeds planner, both feed design). Planner Subagent additionally commits requirements + plan and opens the one Dev PR (partial body) once approved; Design Subagent additionally publishes a Confluence Design page once approved.
 -   Stage 4 → commits design-{{STORY_ID}}.md + src/ onto Planner's existing branch, updates the existing Dev PR's body (app repo) → used by Stages 5, 7
@@ -135,9 +149,13 @@ AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points
 
 ## Human Checkpoints Detail
 
+### Gap Scanner (optional)
+
+Chat-based: human picks which candidate(s) from the ranked list to pursue, if any. Each pick is handed off individually to Stage 0 — picking a candidate here is not itself an APPROVE for creating a Jira issue; that happens in Stage 0's own checkpoint below.
+
 ### Stage 0 — Create Story (optional)
 
-Chat-based: APPROVE → Jira Agent creates exactly one new Jira Story via jira-reader Mode 3, then proceeds into Stage 1a Single Story Mode for it REJECT → ask what's wrong, targeted edit to the draft, re-present (never touches Jira until APPROVEd)
+Chat-based, after a Mode 4 dedup check: if a match is found, human decides to use the existing issue (skip creation) or explicitly proceed with creating a new one anyway; if no match, human reviews the create draft — APPROVE → Jira Agent creates exactly one new Jira Story via jira-reader Mode 3, then proceeds into Stage 1a Single Story Mode for it REJECT → ask what's wrong, targeted edit to the draft, re-present (never touches Jira until APPROVEd)
 
 ### After Requirements Subagent (Stage 1b-3)
 
