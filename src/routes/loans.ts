@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/database';
-import { calculateDueDate } from '../validators';
+import { calculateDueDate, calculateFine } from '../validators';
 
 const router = Router();
 
@@ -22,21 +22,50 @@ router.get('/', (_req: Request, res: Response) => {
 // active (not returned) and past their due date. Reuses the same
 // books/members join pattern as GET '/', adding an overdue filter
 // and a computed days_overdue field (AISDLC-7).
+//
+// AISDLC-2: additively extended to also expose fine_amount/
+// fine_paid/fine_waived. Existing fields/behavior are unchanged.
+// fine_amount is computed and persisted the first time a loan is
+// seen here (fine_amount IS NULL); once set it is reused as-is on
+// later reads rather than recalculated (per approved design).
 router.get('/overdue', (_req: Request, res: Response) => {
   try {
     const overdueLoans = db.prepare(`
       SELECT l.id, l.issued_date, l.due_date,
              b.id AS book_id, b.title, b.isbn,
              m.id AS member_id, m.name, m.email,
-             CAST(julianday(date('now')) - julianday(l.due_date) AS INTEGER) AS days_overdue
+             CAST(julianday(date('now')) - julianday(l.due_date) AS INTEGER) AS days_overdue,
+             l.fine_amount, l.fine_paid, l.fine_waived
       FROM loans l
       JOIN books b ON l.book_id = b.id
       JOIN members m ON l.member_id = m.id
       WHERE l.returned_date IS NULL
         AND l.due_date < date('now')
       ORDER BY l.due_date ASC
-    `).all();
-    res.json(overdueLoans);
+    `).all() as Array<{
+      id: number;
+      days_overdue: number;
+      fine_amount: number | null;
+      fine_paid: number;
+      fine_waived: number;
+      [key: string]: unknown;
+    }>;
+
+    const result = overdueLoans.map((loan) => {
+      let fineAmount = loan.fine_amount;
+      if (fineAmount === null || fineAmount === undefined) {
+        fineAmount = calculateFine(loan.days_overdue);
+        db.prepare('UPDATE loans SET fine_amount = ? WHERE id = ?').run(fineAmount, loan.id);
+      }
+      return {
+        ...loan,
+        fine_amount: fineAmount,
+        fine_paid: Boolean(loan.fine_paid),
+        fine_waived: Boolean(loan.fine_waived),
+      };
+    });
+
+    res.json(result);
   } catch (err) {
     console.error('Failed to fetch overdue loans:', err);
     res.status(500).json({ error: 'Failed to fetch overdue loans' });
