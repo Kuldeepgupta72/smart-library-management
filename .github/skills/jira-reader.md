@@ -71,8 +71,12 @@ jira-agent's optional Stage 0 — never invoke this mode without a
 prior explicit human APPROVE of this exact content, per Rule 6)
 Steps:
 1. Build auth header: Basic base64(JIRA_EMAIL:JIRA_API_TOKEN)
-2. Build payload:
-   `{"fields": {"project": {"key": "AISDLC"}, "issuetype": {"name": "Story"}, "summary": "{{title}}", "description": "{{description + acceptance_criteria}}"}}`
+2. Build payload — description MUST be Atlassian Document Format
+   (ADF), not a plain string; a plain string is rejected with
+   {"errors":{"description":"Operation value must be an Atlassian
+   Document..."}}. Split {{description + acceptance_criteria}} on
+   blank lines into paragraphs:
+   `{"fields": {"project": {"key": "AISDLC"}, "issuetype": {"name": "Story"}, "summary": "{{title}}", "description": {"type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "{{paragraph}}"}]}, ...]}}}`
 3. POST {{JIRA_URL}}/rest/api/3/issue with that payload
 4. Return the new issue key (e.g. AISDLC-{{NUMBER}}) and its URL
 5. This mode may ONLY create — never update, transition, comment on,
@@ -94,6 +98,10 @@ Mode 4: list of {story_id, summary, status} matches, or empty list
 - 400/422 Bad Request (Mode 3 — create payload rejected): →
   "Story creation failed — check the project/issuetype fields are
   valid for this Jira instance"
+- 400 with "description":"Operation value must be an Atlassian
+  Document...": → the description field was sent as a plain string
+  instead of ADF — rebuild it per Mode 3 Step 2 and retry with the
+  exact same approved content, not a regenerated draft
 - Network timeout: retry once after 5 seconds, then show
   "Cannot reach Jira. Check JIRA_URL"
 - Missing fields: return available fields, flag missing ones
