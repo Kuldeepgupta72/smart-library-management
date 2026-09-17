@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Library Management System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <h1>Smart Library Management System</h1>
+  </header>
+
+  <div id="message-banner" class="banner" style="display:none;"></div>
+
+  <nav>
+    <button class="tab-btn active" data-tab="books">Books</button>
+    <button class="tab-btn" data-tab="members">Members</button>
+    <button class="tab-btn" data-tab="issue">Issue Book</button>
+    <button class="tab-btn" data-tab="return">Return Book</button>
+    <button class="tab-btn" data-tab="overdue">Overdue Loans</button>
+  </nav>
+
+  <main>
+
+    <section id="books" class="tab-content active">
+      <h2>Books</h2>
+      <form id="add-book-form">
+        <h3>Add New Book</h3>
+        <input type="text" id="book-title" placeholder="Title" required>
+        <input type="text" id="book-author" placeholder="Author" required>
+        <input type="text" id="book-isbn" placeholder="ISBN" required>
+        <button type="submit">Add Book</button>
+        <span id="book-error" class="inline-error"></span>
+      </form>
+      <div id="books-controls">
+        <label for="availability-filter">Availability:</label>
+        <select id="availability-filter">
+          <option value="">All</option>
+          <option value="available">Available</option>
+          <option value="not_available">Not available</option>
+        </select>
+
+        <label for="sort-select">Sort by:</label>
+        <select id="sort-select">
+          <option value="title">Title (A-Z)</option>
+          <option value="author">Author (A-Z)</option>
+        </select>
+
+        <button type="button" id="reset-filters-btn">Reset Filters</button>
+      </div>
+      <div id="books-list"></div>
+      <div id="books-pagination"></div>
+    </section>
+
+    <section id="members" class="tab-content">
+      <h2>Members</h2>
+      <input type="text" id="member-search" placeholder="Search by name or email..." />
+      <form id="add-member-form">
+        <h3>Add New Member</h3>
+        <input type="text" id="member-name" placeholder="Name" required>
+        <input type="text" id="member-email" placeholder="Email" required>
+        <button type="submit">Add Member</button>
+        <span id="member-error" class="inline-error"></span>
+      </form>
+      <div id="members-list"></div>
+    </section>
+
+    <section id="issue" class="tab-content">
+      <h2>Issue Book</h2>
+      <form id="issue-form">
+        <h3>Select Book and Member</h3>
+        <select id="issue-book-select">
+          <option value="">-- Select a Book --</option>
+        </select>
+        <select id="issue-member-select">
+          <option value="">-- Select a Member --</option>
+        </select>
+        <button type="submit">Issue Book</button>
+      </form>
+    </section>
+
+    <section id="return" class="tab-content">
+      <h2>Return Book</h2>
+      <div id="loans-list"></div>
+    </section>
+
+    <section id="overdue" class="tab-content">
+      <h2>Overdue Loans</h2>
+      <div id="overdue-loans-list"></div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

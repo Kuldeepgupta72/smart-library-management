@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.db
+data/
+artifacts/
+deploy/
+server_out.txt
+
+.env
+.env.local
+.idea/
