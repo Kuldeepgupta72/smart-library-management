@@ -45,6 +45,20 @@ export function initializeDatabase(): void {
     db.exec('ALTER TABLE loans ADD COLUMN due_date TEXT');
   }
 
+  // AISDLC-2: add overdue-fine columns if not present (fine amount,
+  // paid flag, waived flag). Additive + idempotent, same pattern as
+  // the AISDLC-5 due_date migration above.
+  const loanColumnsForFines = db.prepare('PRAGMA table_info(loans)').all() as Array<{ name: string }>;
+  if (!loanColumnsForFines.some(col => col.name === 'fine_amount')) {
+    db.exec('ALTER TABLE loans ADD COLUMN fine_amount REAL');
+  }
+  if (!loanColumnsForFines.some(col => col.name === 'fine_paid')) {
+    db.exec('ALTER TABLE loans ADD COLUMN fine_paid INTEGER DEFAULT 0');
+  }
+  if (!loanColumnsForFines.some(col => col.name === 'fine_waived')) {
+    db.exec('ALTER TABLE loans ADD COLUMN fine_waived INTEGER DEFAULT 0');
+  }
+
   // AISDLC-29: add unique index on books.isbn (skip if duplicates exist)
   const duplicates = db.prepare(
     'SELECT isbn FROM books GROUP BY isbn HAVING COUNT(*) > 1'
