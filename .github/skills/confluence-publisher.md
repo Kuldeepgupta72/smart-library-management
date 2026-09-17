@@ -1,10 +1,16 @@
 # Confluence Publisher Skill
 
 ## Purpose
-Create or update a Confluence Batch Summary page via REST API.
+Create or update a Confluence page via REST API — either the Batch
+Summary page (confluence-agent) or the Design page (design-subagent).
+The create/update mechanics (search-by-title, then update-or-create)
+are identical for both; only page_title/page_content differ.
 
 ## Used By
-- confluence-agent (.github/agents/confluence-agent.agent.md)
+- confluence-agent (.github/agents/confluence-agent.agent.md) — Batch
+  Summary page
+- design-subagent (.github/subagents/design-subagent.agent.md) —
+  Design page
 
 ## Required Environment Variables
 - CONFLUENCE_URL: base URL of Confluence instance

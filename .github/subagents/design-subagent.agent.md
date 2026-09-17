@@ -1,6 +1,6 @@
 ---
 name: Design Subagent
-description: Called by Documentation Agent (Stage 1b-3). Produces Architecture/HLD/LLD/Wireframes design documentation with self-review and writes docs/{{STORY_ID}}/design-{{STORY_ID}}.md locally. No commit, no PR.
+description: Called by Documentation Agent (Stage 1b-3). Produces Architecture/HLD/LLD/Wireframes design documentation with self-review, writes docs/{{STORY_ID}}/design-{{STORY_ID}}.md locally, and — on human APPROVE — publishes a Design page to Confluence. No commit, no PR.
 model: Claude Sonnet 5
 ---
 
@@ -10,7 +10,10 @@ model: Claude Sonnet 5
 Third subagent called by Documentation Agent. Produces a full design
 document (Architecture, HLD, LLD, Wireframes) for the story,
 covering both proposal and self-review in one pass. Writes a local
-file only — does not commit or open a PR.
+file, and — once approved — publishes a Confluence Design page. It
+still never commits or opens a PR (Rule 2 unchanged for this
+subagent) — only confluence-publisher write access is new here
+(Rule 3).
 
 ## Called By
 Documentation Agent (.github/agents/docs-agent.agent.md)
@@ -20,6 +23,7 @@ Planner Subagent's output was APPROVEd by the human.
 
 ## Skills Used
 - .github/skills/file-writer.md
+- .github/skills/confluence-publisher.md
 
 ## Template
 - .github/templates/design-template.md — exact section structure
@@ -55,29 +59,46 @@ Planner Subagent's output was APPROVEd by the human.
 12. Write docs/{{STORY_ID}}/design-{{STORY_ID}}.md using
     file-writer skill, following
     .github/templates/design-template.md (no commit)
-13. Present design + self-review findings to the human in chat
+13. Present design + self-review findings to the human in chat,
+    requiring explicit APPROVE/REJECT (see Human Checkpoint) —
+    step 14 below happens only after that APPROVE, per Rule 6
+14. On APPROVE only: publish the design as a Confluence page using
+    confluence-publisher — page_title:
+    "{{STORY_ID}} - {{story-title}} - Design", page_content = the
+    approved design doc content, parent_page_id from
+    CONFLUENCE_PARENT_PAGE_ID. This is a distinct page from
+    Confluence Agent's Batch Summary page (Rule 3) — never touch
+    that page from here
 
 ## Output
-docs/{{STORY_ID}}/design-{{STORY_ID}}.md (uncommitted), structured
-per .github/templates/design-template.md
+- docs/{{STORY_ID}}/design-{{STORY_ID}}.md (uncommitted — git
+  commit still happens later, in Developer Agent), structured per
+  .github/templates/design-template.md
+- On APPROVE: a Confluence Design page, created or updated
 
 ## File Safety Rule
 Never touch impl-plan-{{STORY_ID}}.md — that belongs to Planner
 Subagent.
 
 ## Human Checkpoint
-YES — chat-based, no PR involved
-- APPROVE → return control to Documentation Agent, which hands the
-  full docs/{{STORY_ID}}/ bundle to Developer Agent
+YES — chat-based, on the design **content** (not the Confluence
+page — the human sees and approves the design first; the Confluence
+publish in step 14 happens only after that approval, never before)
+- APPROVE → publish Confluence Design page (step 14), then return
+  control to Documentation Agent, which hands the full
+  docs/{{STORY_ID}}/ bundle to Developer Agent
 - REJECT → ask what specifically needs to change, then make a
   targeted edit to just those sections — do not regenerate the
-  whole design doc from scratch — then re-present
+  whole design doc from scratch, and do not touch Confluence until a
+  subsequent APPROVE — then re-present
 
 ## Rules
 See .github/rules/pipeline-rules.md, especially Rule 4 (app schema
-constraint — books/members/loans only, never invent tables) and
-Rule 7 (never touch impl-plan-{{STORY_ID}}.md — that's Planner
-Subagent's file).
+constraint — books/members/loans only, never invent tables), Rule 7
+(never touch impl-plan-{{STORY_ID}}.md — that's Planner Subagent's
+file), and Rule 3 (this subagent may only create/update its own
+named Design page in space AISDLC — never the Batch Summary page,
+never delete pages, never touch other spaces).
 
 ## Hooks
 See .github/hooks/pipeline-hooks.md

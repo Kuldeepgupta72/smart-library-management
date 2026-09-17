@@ -2,6 +2,9 @@
 
 ## Purpose
 Fetch a single story or query the backlog from Jira via REST API.
+Mode 3 is the one narrow exception to read-only: creating a new Story
+issue, and only from a human-approved draft (see Rule 1,
+pipeline-rules.md).
 
 ## Used By
 - jira-agent (.github/agents/jira-agent.agent.md)
@@ -45,17 +48,34 @@ Steps:
 3. Return numbered list grouped by Epic for human to choose from
 4. This mode is READ-ONLY — never creates or modifies issues
 
+### Mode 3 — Create Story (the one write exception, human-approved only)
+Input: human-approved title, description, acceptance_criteria (from
+jira-agent's optional Stage 0 — never invoke this mode without a
+prior explicit human APPROVE of this exact content, per Rule 6)
+Steps:
+1. Build auth header: Basic base64(JIRA_EMAIL:JIRA_API_TOKEN)
+2. Build payload:
+   `{"fields": {"project": {"key": "AISDLC"}, "issuetype": {"name": "Story"}, "summary": "{{title}}", "description": "{{description + acceptance_criteria}}"}}`
+3. POST {{JIRA_URL}}/rest/api/3/issue with that payload
+4. Return the new issue key (e.g. AISDLC-{{NUMBER}}) and its URL
+5. This mode may ONLY create — never update, transition, comment on,
+   or delete any issue, including the one it just created
+
 ## Output
 Mode 1: title, description, acceptance_criteria, story_points,
 status, assignee, story_id
 Mode 2: list of {epic, story_id, summary, status} grouped by epic
 — Story-type issues only, no sub-tasks
+Mode 3: new story_id and its URL
 
 ## Error Handling
 - 401 Unauthorized: → "Check JIRA_API_TOKEN in your .env file"
 - 404 Not Found: → "Story AISDLC-{{NUMBER}} not found.
   Verify story exists in AISDLC project"
-- 400 Bad Request: → "Invalid request. Check JIRA_URL format"
+- 400 Bad Request (Mode 1/2): → "Invalid request. Check JIRA_URL format"
+- 400/422 Bad Request (Mode 3 — create payload rejected): →
+  "Story creation failed — check the project/issuetype fields are
+  valid for this Jira instance"
 - Network timeout: retry once after 5 seconds, then show
   "Cannot reach Jira. Check JIRA_URL"
 - Missing fields: return available fields, flag missing ones

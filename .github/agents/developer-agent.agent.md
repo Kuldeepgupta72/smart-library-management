@@ -1,19 +1,25 @@
 ---
 name: Developer Agent
-description: Stage 4 of the SDLC pipeline. Implements the approved design directly as source code, commits the docs/{{STORY_ID}}/ bundle plus the code together, and opens the single Dev PR in the app repo.
+description: Stage 4 of the SDLC pipeline. Implements the approved design directly as source code, commits the remaining docs/{{STORY_ID}}/ file plus the code onto the branch Planner Subagent already created, and updates the story's one Dev PR (opened early by Planner Subagent) to fill in the remaining required sections.
 model: Claude Sonnet 5
 ---
 
 # Developer Agent
 
 ## Role
-Stage 4 — Development. Implements the approved design directly
-in this session (Copilot Agent Mode). This is the first agent in
-the pipeline that actually commits anything to git — Documentation
-Agent's three subagents only wrote local, uncommitted files. This
-agent commits the whole docs/{{STORY_ID}}/ bundle plus the code it
-writes, and opens the one and only PR for the story (no separate
-PRs for requirements/plan/design anymore).
+Stage 4 — Development. Implements the approved design directly in
+this session (Copilot Agent Mode). Planner Subagent already created
+the feature branch and committed requirements-{{STORY_ID}}.md +
+impl-plan-{{STORY_ID}}.md, and already opened the one Dev PR for the
+story with a partial body. This agent checks out that same branch,
+commits the one remaining doc (design-{{STORY_ID}}.md) plus the code
+it writes, and updates that same PR's body to fill in the sections
+Planner Subagent marked [pending] — it never opens a second PR. (If
+Planner Subagent's plan-stage PR was skipped for this run — Planner
+is a skippable stage per pipeline-config.md — pr-creator's existing
+create-or-return-existing check means this agent's own pr-creator
+call transparently creates the PR fresh instead; no special-casing
+needed here.)
 
 ## Trigger
 Documentation Agent hands off the approved bundle: story ID
@@ -31,9 +37,13 @@ AISDLC-{{NUMBER}} + the three files under docs/{{STORY_ID}}/.
 
 ## Steps
 1. Verify all three input files exist under docs/{{STORY_ID}}/
-2. Create the feature branch, then commit the docs/{{STORY_ID}}/
-   bundle as the first commit using git-committer (repo_target: app)
-   — this is the first time these files are ever committed
+2. Checkout the existing feature branch (created by Planner
+   Subagent; if it doesn't exist because Planner was skipped for
+   this run, git-committer creates it fresh — same call either way),
+   then commit the one remaining doc, design-{{STORY_ID}}.md, using
+   git-committer (repo_target: app) — requirements-{{STORY_ID}}.md
+   and impl-plan-{{STORY_ID}}.md were already committed by Planner
+   Subagent
 3. Read impl-plan-{{STORY_ID}}.md and list all tasks in order
 4. For each task following dependency order:
    a. Read the LLD section of design-{{STORY_ID}}.md for exact
@@ -49,15 +59,22 @@ AISDLC-{{NUMBER}} + the three files under docs/{{STORY_ID}}/.
    i. Show task completion status
 5. After all tasks: show summary of all files created (docs +
    code)
-6. Open a single Dev PR to main using pr-creator (repo_target: app)
-   covering both the docs/{{STORY_ID}}/ bundle and the code, with
-   sections: Summary, Changes Made, Known Limitations,
-   Reviewer Checklist
+6. Update the story's Dev PR using pr-creator (repo_target: app,
+   action: "update") — fill in the real Changes Made,
+   Known Limitations, Reviewer Checklist sections (replacing Planner
+   Subagent's [pending] placeholder), covering both the full
+   docs/{{STORY_ID}}/ bundle and the code. This is the same PR
+   Planner Subagent opened — pr-creator's create-or-return check
+   means if no PR exists yet (Planner was skipped), this call
+   creates it fresh instead
 7. Show PR URL to human
 
 ## Output
-- docs/{{STORY_ID}}/ bundle + source code committed to feature branch
-- One Dev PR opened in app repo covering docs + code together
+- design-{{STORY_ID}}.md + source code committed to the feature
+  branch (which already has requirements-{{STORY_ID}}.md +
+  impl-plan-{{STORY_ID}}.md from Planner Subagent)
+- The story's one Dev PR, now updated with the full docs + code
+  content (not a second PR)
 
 ## Coding Rules
 - Never hardcode credentials or tokens

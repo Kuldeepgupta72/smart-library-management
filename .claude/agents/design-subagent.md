@@ -1,7 +1,7 @@
 ---
 name: design-subagent
-description: Called by docs-agent (Stage 1b-3). Produces Architecture/HLD/LLD/Wireframes design documentation with self-review and writes docs/{{STORY_ID}}/design-{{STORY_ID}}.md locally. No commit, no PR. Not normally invoked directly by a human — docs-agent calls this via the Task tool.
-tools: Read, Write
+description: Called by docs-agent (Stage 1b-3). Produces Architecture/HLD/LLD/Wireframes design documentation with self-review, writes docs/{{STORY_ID}}/design-{{STORY_ID}}.md locally, and — on human APPROVE — publishes a Design page to Confluence. No commit, no PR (that stays git-only, done by planner-subagent/developer-agent). Not normally invoked directly by a human — docs-agent calls this via the Task tool.
+tools: Read, Write, Bash
 model: sonnet
 ---
 
@@ -11,7 +11,10 @@ model: sonnet
 Third subagent called by `docs-agent`. Produces a full design
 document (Architecture, HLD, LLD, Wireframes) for the story,
 covering both proposal and self-review in one pass. Writes a local
-file only — does not commit or open a PR.
+file, and — once approved — publishes a Confluence Design page. It
+still never commits or opens a PR (Rule 2 unchanged for this
+subagent) — only `confluence-publisher` write access is new here
+(Rule 3).
 
 ## Called By
 `docs-agent` (`.claude/agents/docs-agent.md`)
@@ -21,6 +24,7 @@ file only — does not commit or open a PR.
 
 ## Skills Used
 - `.claude/skills/file-writer/SKILL.md`
+- `.claude/skills/confluence-publisher/SKILL.md`
 
 ## Template
 - `.claude/templates/design-template.md` — exact section structure
@@ -57,29 +61,47 @@ file only — does not commit or open a PR.
 12. Write `docs/{{STORY_ID}}/design-{{STORY_ID}}.md` using the
     `file-writer` skill, following
     `.claude/templates/design-template.md` (no commit)
-13. Present design + self-review findings to the human in chat
+13. Present design + self-review findings to the human in chat,
+    requiring explicit APPROVE/REJECT (see Human Checkpoint) —
+    step 14 below happens only after that APPROVE, per Rule 6
+14. On APPROVE only: publish the design as a Confluence page using
+    `confluence-publisher` — `page_title:
+    "{{STORY_ID}} - {{story-title}} - Design"`, `page_content` = the
+    approved design doc content, `parent_page_id` from
+    `CONFLUENCE_PARENT_PAGE_ID`. This is a distinct page from
+    `confluence-agent`'s Batch Summary page (Rule 3) — never touch
+    that page from here
 
 ## Output
-`docs/{{STORY_ID}}/design-{{STORY_ID}}.md` (uncommitted), structured
-per `.claude/templates/design-template.md`
+- `docs/{{STORY_ID}}/design-{{STORY_ID}}.md` (uncommitted — git
+  commit still happens later, in `developer-agent`), structured per
+  `.claude/templates/design-template.md`
+- On APPROVE: a Confluence Design page, created or updated
 
 ## File Safety Rule
 Never touch `impl-plan-{{STORY_ID}}.md` — that belongs to
 `planner-subagent`.
 
 ## Human Checkpoint
-YES — chat-based, no PR involved
-- APPROVE → return control to `docs-agent`, which hands the full
-  `docs/{{STORY_ID}}/` bundle to `developer-agent`
+YES — chat-based, on the design **content** (not the Confluence
+page — the human sees and approves the design first; the Confluence
+publish in step 14 happens only after that approval, never before)
+- APPROVE → publish Confluence Design page (step 14), then return
+  control to `docs-agent`, which hands the full `docs/{{STORY_ID}}/`
+  bundle to `developer-agent`
 - REJECT → ask what specifically needs to change, then make a
   targeted edit to just those sections — do not regenerate the
-  whole design doc from scratch — then re-present
+  whole design doc from scratch, and do not touch Confluence until a
+  subsequent APPROVE — then re-present
 
 ## Rules
 See `.claude/rules/pipeline-rules.md`, especially Rule 4 (app schema
-constraint — books/members/loans only, never invent tables) and
-Rule 7 (never touch `impl-plan-{{STORY_ID}}.md` — that's
-`planner-subagent`'s file).
+constraint — books/members/loans only, never invent tables), Rule 7
+(never touch `impl-plan-{{STORY_ID}}.md` — that's
+`planner-subagent`'s file), and Rule 3 (this subagent may only
+create/update its own named Design page in space `AISDLC` — never
+the Batch Summary page, never delete pages, never touch other
+spaces).
 
 ## Hooks
 Real hooks in `.claude/settings.json`:

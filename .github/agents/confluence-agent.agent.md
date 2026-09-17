@@ -38,7 +38,11 @@ Human reports test execution results (from Tester Agent Stage 9).
    Summary
 3. Compile page content:
    - Story Overview — from docs/{{STORY_ID}}/requirements-{{STORY_ID}}.md
-   - Design Doc Link — from docs/{{STORY_ID}}/design-{{STORY_ID}}.md PR
+   - Design Doc Link — the Confluence Design page URL published by
+     Design Subagent (Stage 1b-3); fall back to the local
+     docs/{{STORY_ID}}/design-{{STORY_ID}}.md file/PR reference only
+     if that page link is genuinely unavailable (mark [pending]
+     rather than guessing a URL)
    - Code Changes Summary — from Dev PR
    - Code Review Findings — from Reviewer Agent's posted comments
    - QA Results — from human-reported test execution counts
@@ -61,8 +65,10 @@ YES — confirm output type/content before publishing.
 
 ## Rules
 See .github/rules/pipeline-rules.md, especially Rule 3 (Confluence
-scope — only the one Batch Summary page in space AISDLC) and
-Rule 4 (never invent facts — mark genuinely missing info [pending]).
+scope — this agent owns exactly one named page, the Batch Summary,
+in space AISDLC; the separate Design page belongs to Design
+Subagent — never edit that page from here) and Rule 4 (never invent
+facts — mark genuinely missing info [pending]).
 
 ## Hooks
 See .github/hooks/pipeline-hooks.md

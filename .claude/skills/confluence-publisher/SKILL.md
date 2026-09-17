@@ -1,15 +1,21 @@
 ---
 name: confluence-publisher
-description: Create or update a Confluence Batch Summary page via REST API, scoped to the AISDLC space. Use only from confluence-agent, and never invent page content — missing info stays [pending].
+description: Create or update a Confluence page (Batch Summary or Design), scoped to the AISDLC space, one named page per story per caller. Use only from confluence-agent or design-subagent, and never invent page content — missing info stays [pending].
 ---
 
 # Confluence Publisher Skill
 
 ## Purpose
-Create or update a Confluence Batch Summary page via REST API.
+Create or update a Confluence page via REST API — either the Batch
+Summary page (confluence-agent) or the Design page (design-subagent).
+The create/update mechanics (search-by-title, then update-or-create)
+are identical for both; only `page_title`/`page_content` differ.
 
 ## Used By
-- `confluence-agent` (`.claude/agents/confluence-agent.md`)
+- `confluence-agent` (`.claude/agents/confluence-agent.md`) — Batch
+  Summary page
+- `design-subagent` (`.claude/agents/design-subagent.md`) — Design
+  page
 
 ## Required Environment Variables
 - `CONFLUENCE_URL`: base URL of Confluence instance

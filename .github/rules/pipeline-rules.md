@@ -12,34 +12,49 @@ one place. `copilot-instructions.md` stays the always-on global
 file (folder structure, coding standards); this file is the
 detailed, per-domain rule set agents point to.
 
-## 1. Jira — Read-Only, No Exceptions
+## 1. Jira — Read-Only, One Narrow Create Exception
 - Only Jira Agent may call the Jira REST API, and only via the
   `jira-reader` skill
-- `jira-reader` is GET-only: browse the backlog, fetch one story's
-  details. No agent — Jira Agent included — may create, update,
-  transition, comment on, or delete a Jira issue
+- `jira-reader` is GET-only for browsing the backlog or fetching a
+  story (Modes 1-2). The **only** write action permitted anywhere in
+  the pipeline is `jira-reader` Mode 3 — creating exactly one new
+  Story issue from a human-approved title/description/acceptance
+  criteria draft (optional Stage 0, see jira-agent.agent.md). No
+  agent — Jira Agent included — may update, transition, comment on,
+  or delete a Jira issue, ever
 - If a stage would normally reflect a status change back to Jira
   (e.g. "story now in development"), it must NOT do this
   automatically — tell the human to update Jira manually if needed
 - No agent other than Jira Agent may reference Jira credentials or
   attempt to reach the Jira API directly
+- Stage 0 (create) is optional and additive — the existing Stage 1a
+  entry points are unchanged and do not require it
 
 ## 2. GitHub — Scoped Write Access
 - Only `git-committer` may commit/push; only `pr-creator` may open
-  a PR; only `pr-commenter` may post PR comments — no agent writes
-  git history or calls the GitHub API outside these skills
+  or update a PR; only `pr-commenter` may post PR comments — no
+  agent writes git history or calls the GitHub API outside these
+  skills
 - No agent ever merges a PR — merging is always a manual human
   action, confirmed back to the agent in chat
 - No agent pushes directly to `main`/`GITHUB_DEFAULT_BRANCH` —
   always via a feature branch per `pipeline-config.md` naming rules
-- Requirements/Planner/Design subagents never commit or open a PR
-  (local files only) — see docs-agent.agent.md
+- Requirements/Design subagents never commit or open a PR (local
+  files only). Planner Subagent is the one exception: on APPROVE of
+  the plan, it may create the feature branch, commit the
+  already-approved requirements + plan docs, and open the one Dev PR
+  with a partial body — Developer Agent (Stage 4) reuses that same
+  branch/PR rather than opening a second one, and updates its body
+  once code exists — see docs-agent.agent.md / planner-subagent.agent.md
 
-## 3. Confluence — Single Page, Scoped Space
-- Only Confluence Agent may call `confluence-publisher`
-- May only create or update the one Batch Summary page per story,
-  in space `AISDLC` — never delete pages, never touch pages outside
-  that space or that don't match the story's title format
+## 3. Confluence — Two Named Pages, Scoped Space
+- Only Confluence Agent and Design Subagent may call
+  `confluence-publisher`
+- Each may only create or update its own one named page per story,
+  in space `AISDLC` — Confluence Agent: the Batch Summary page;
+  Design Subagent: the Design page — never delete pages, never
+  touch pages outside that space or that don't match the story's
+  title format
 
 ## 4. Data Integrity — Never Invent
 - Every fact in a generated document must trace back to a real

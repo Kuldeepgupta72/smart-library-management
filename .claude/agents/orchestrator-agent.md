@@ -13,33 +13,46 @@ Master controller managing the complete Agentic SDLC Pipeline for Jira story AIS
 
 ## How to Activate
 
-Invoke via the `/run-pipeline` slash command with a story ID: `/run-pipeline AISDLC-{{NUMBER}}`. Or run `/run-pipeline` with no argument to browse the backlog first. Can also be invoked directly via the Task tool.
+Invoke via the `/run-pipeline` slash command with a story ID: `/run-pipeline AISDLC-{{NUMBER}}`. Or run `/run-pipeline` with no argument to browse the backlog first. Can also be invoked directly via the Task tool. These two entry points are unchanged and do not require Stage 0. Optionally, if there's no existing story yet, describe the gap/enhancement directly in chat to trigger the optional Stage 0 (human-approved Jira story creation) first — it hands off into the same Stage 1a flow once the story exists.
 
 ## Pipeline Overview (ASCII)
 
 ```
-AISDLC Backlog / AISDLC-{{NUMBER}}
+(optional) Human describes a gap/enhancement
          │
          ▼
 ┌────────────────────────┐
+│ Stage 0 Create Story    │──► new AISDLC-{{NUMBER}} story
+│ (human-approved only)   │    (the only Jira write in the pipeline)
+└────────────────────────┘
+         │
+         ▼
+AISDLC Backlog / AISDLC-{{NUMBER}}   ◄── unchanged entry points:
+         │                              /run-pipeline (backlog) or
+         ▼                              /run-pipeline AISDLC-{{NUMBER}}
+┌────────────────────────┐              skip Stage 0 entirely
 │ Stage 1a Jira Lookup     │──► story ID + fetched Jira details
 └────────────────────────┘
          │
          ▼
-┌──────────────────────────────────────────────────────────┐
-│ Stage 1b-3 Documentation Agent (local files, no PR yet)  │
-│   ├─ Requirements Subagent → requirements-{{STORY_ID}}.md │
-│   │      ✅ CHECKPOINT — chat APPROVE/REJECT              │
-│   ├─ Planner Subagent      → impl-plan-{{STORY_ID}}.md    │
-│   │      ✅ CHECKPOINT — chat APPROVE/REJECT              │
-│   └─ Design Subagent       → design-{{STORY_ID}}.md       │
-│          ✅ CHECKPOINT — chat APPROVE/REJECT              │
-└──────────────────────────────────────────────────────────┘
-         │  full docs/{{STORY_ID}}/ bundle, all approved
+┌──────────────────────────────────────────────────────────────┐
+│ Stage 1b-3 Documentation Agent                               │
+│   ├─ Requirements Subagent → requirements-{{STORY_ID}}.md     │
+│   │      ✅ CHECKPOINT — chat APPROVE/REJECT (no PR)          │
+│   ├─ Planner Subagent      → impl-plan-{{STORY_ID}}.md        │
+│   │      ✅ CHECKPOINT — chat APPROVE/REJECT                  │
+│   │      on APPROVE: commits requirements + plan, opens the   │
+│   │      one Dev PR early (partial body)                      │
+│   └─ Design Subagent       → design-{{STORY_ID}}.md            │
+│          ✅ CHECKPOINT — chat APPROVE/REJECT (no PR)          │
+│          on APPROVE: publishes Confluence Design page         │
+└──────────────────────────────────────────────────────────────┘
+         │  full docs/{{STORY_ID}}/ bundle approved, Dev PR open
          ▼
 ┌────────────────────────┐
-│ Stage 4 Development     │──► docs/{{STORY_ID}}/ + src/ committed
-│                          │    together, single Dev PR (app repo)
+│ Stage 4 Development     │──► commits design-{{STORY_ID}}.md + src/
+│                          │    onto the same branch, updates the
+│                          │    same Dev PR's body (app repo)
 └────────────────────────┘
          │
          ▼
@@ -55,21 +68,24 @@ AISDLC Backlog / AISDLC-{{NUMBER}}
          │
    ✅ CHECKPOINT — human merges Dev PR
          ▼
-┌────────────────────────┐
-│ Stage 7 Deploy           │──► app running at localhost:5050
-└────────────────────────┘
-         │
-   ✅ CHECKPOINT — confirm deployed
-         ▼
-┌────────────────────────┐
-│ Stage 8 Test Generation │──► PR (test repo)
-└────────────────────────┘
-         │
-   ✅ CHECKPOINT — confirm scope before generating
-         ▼
-┌────────────────────────┐
-│ Stage 9 Test Execution  │──► evidence log (human-reported)
-└────────────────────────┘
+┌────────────────────────┐   ┌─────────────────────────┐
+│ Stage 7 Deploy           │   │ Stage 8 Test Generation │
+│ ──► app at localhost:5050│   │ ──► PR (test repo)      │
+└────────────────────────┘   └─────────────────────────┘
+   both fed directly by Stage 6's Handoff Summary — Stage 8
+   (test *generation*, document-driven) does not need the app
+   deployed, so it may run concurrently with Stage 7, not strictly
+   after it
+         │                              │
+   ✅ CHECKPOINT — confirm deployed   ✅ CHECKPOINT — confirm scope
+         │                              │ before generating
+         └───────────────┬──────────────┘
+                          ▼
+              ┌────────────────────────┐
+              │ Stage 9 Test Execution  │──► evidence log (human-reported)
+              └────────────────────────┘
+   requires BOTH Stage 7 (app deployed) and Stage 8 (tests
+   generated) complete — execution genuinely needs the live app
          │
    ✅ CHECKPOINT — wait for pass/fail results
          ▼
@@ -82,6 +98,8 @@ AISDLC Backlog / AISDLC-{{NUMBER}}
 
 ## All Stage Agents (invoked via the Task tool)
 
+-   Stage 0 (optional): `.claude/agents/jira-agent.md` (same agent as
+    Stage 1a — see its Stage 0 section)
 -   Stage 1a: `.claude/agents/jira-agent.md`
 -   Stage 1b-3: `.claude/agents/docs-agent.md`
     -   `.claude/agents/requirements-subagent.md`
@@ -105,13 +123,14 @@ AISDLC Backlog / AISDLC-{{NUMBER}}
 
 ## Context Flow Between Stages
 
+-   Stage 0 (optional) → new AISDLC-{{NUMBER}} story ID → feeds directly into Stage 1a (Single Story Mode), same as any human-provided story ID
 -   Stage 1a → story ID + fetched Jira details → used by Stage 1b-3
--   Stage 1b-3 (Documentation Agent) → docs/{{STORY_ID}}/ requirements-{{STORY_ID}}.md, impl-plan-{{STORY_ID}}.md, design-{{STORY_ID}}.md — all local/uncommitted → used by Stage 4 (each subagent's file also feeds the next subagent: requirements feeds planner, both feed design)
--   Stage 4 → commits the docs/{{STORY_ID}}/ bundle + src/, opens the one Dev PR (app repo) → used by Stages 5, 7
+-   Stage 1b-3 (Documentation Agent) → docs/{{STORY_ID}}/ requirements-{{STORY_ID}}.md, impl-plan-{{STORY_ID}}.md, design-{{STORY_ID}}.md → used by Stage 4 (each subagent's file also feeds the next subagent: requirements feeds planner, both feed design). Planner Subagent additionally commits requirements + plan and opens the one Dev PR (partial body) once approved; Design Subagent additionally publishes a Confluence Design page once approved.
+-   Stage 4 → commits design-{{STORY_ID}}.md + src/ onto Planner's existing branch, updates the existing Dev PR's body (app repo) → used by Stages 5, 7
 -   Stage 5 → PR comments → used by Stage 6
--   Stage 6 → merged Dev PR + Handoff Summary → used by Stages 7, 8
--   Stage 7 → running app at localhost:5050 → used by Stage 9
--   Stage 8 → PR (test repo) → used by Stage 9
+-   Stage 6 → merged Dev PR + Handoff Summary → used by Stages 7, 8 (both fed directly and concurrently — see Stage 7/8 note below)
+-   Stage 7 → running app at localhost:5050 → used by Stage 9 (execution only)
+-   Stage 8 → PR (test repo) → used by Stage 9. Stage 8 (test *generation*) is document-driven (Handoff Summary + requirements doc + static repo files) and does not itself require the app to be deployed, so it may run concurrently with Stage 7 rather than strictly after it — Stage 9 (test *execution*) is the part that genuinely needs Stage 7's live app, and still explicitly waits for it.
 -   Stage 9 → evidence log (pass/fail) → used by Stage 10
 -   Stage 10 → Confluence page URL → pipeline complete
 
@@ -119,17 +138,21 @@ Pass this context explicitly in each Task tool invocation — a called subagent 
 
 ## Human Checkpoints Detail
 
+### Stage 0 — Create Story (optional)
+
+Chat-based: APPROVE → jira-agent creates exactly one new Jira Story via `jira-reader` Mode 3, then proceeds into Stage 1a Single Story Mode for it REJECT → ask what's wrong, targeted edit to the draft, re-present (never touches Jira until APPROVEd)
+
 ### After Requirements Subagent (Stage 1b-3)
 
 Chat-based, no PR: APPROVE → proceed to Planner Subagent REJECT → revise requirements-{{STORY_ID}}.md, re-present
 
 ### After Planner Subagent (Stage 1b-3)
 
-Chat-based, no PR: APPROVE → proceed to Design Subagent REJECT → revise impl-plan-{{STORY_ID}}.md, re-present
+Chat-based, on plan content: APPROVE → commit requirements + plan, open the one Dev PR (partial body), then proceed to Design Subagent REJECT → revise impl-plan-{{STORY_ID}}.md, re-present — no git/GitHub action happens until APPROVEd
 
 ### After Design Subagent (Stage 1b-3)
 
-Chat-based, no PR: APPROVE → Documentation Agent hands the full bundle to Stage 4 (Development) REJECT → revise design-{{STORY_ID}}.md, re-present
+Chat-based, on design content: APPROVE → publish Confluence Design page, then Documentation Agent hands the full bundle to Stage 4 (Development) REJECT → revise design-{{STORY_ID}}.md, re-present — no Confluence action happens until APPROVEd
 
 ### After Stage 5 — Code Review (before posting)
 
@@ -141,11 +164,11 @@ Human merges Dev PR manually, tells Claude "PR AISDLC-{{NUMBER}} merged" → age
 
 ### After Stage 7 — Deploy
 
-Human runs build/deploy locally, tells Claude "deployed" → proceed to Stage 8
+Human runs build/deploy locally, tells Claude "deployed" → Stage 7 complete. Stage 8 does not have to wait for this — it may already be running or complete, since it's fed directly by Stage 6, not Stage 7. Stage 9 is what actually waits on this checkpoint.
 
 ### Before Stage 8 — Test Generation
 
-Human confirms scope of scenarios to automate → agent generates and opens PR in test repo
+Human confirms scope of scenarios to automate → agent generates and opens PR in test repo. May run concurrently with Stage 7 — both are triggered directly off Stage 6's Handoff Summary.
 
 ### After Stage 9 — Test Execution
 

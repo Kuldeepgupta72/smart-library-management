@@ -33,6 +33,10 @@ discipline) instead of repeating rules inline per agent.
   - status
   - assignee
 - Minimum clarifying questions to ask human: 3
+- Optional Stage 0 (Gap/Enhancement → Story): the one narrow Jira
+  write exception, human-approved create-only via jira-reader
+  Mode 3 — never required, existing Stage 1a entry points are
+  unaffected (see Rule 1, pipeline-rules.md)
 
 ## Branch Naming Convention
 - App repo: feature/copilot-{{STORY_ID}}-{{short-description}}
@@ -49,12 +53,21 @@ discipline) instead of repeating rules inline per agent.
 - Use lowercase imperative tense
 
 ## PR Conventions
-- Requirements/Planner/Design subagents (Stage 1b-3) never open a
-  PR — they write local, uncommitted files only. The single Dev PR
-  from Stage 4 covers docs + code together.
+- Requirements/Design subagents (Stage 1b-3) never open a PR — they
+  write local, uncommitted files only.
+- Planner Subagent is the one exception: on human APPROVE of the
+  plan, it commits the already-approved requirements + plan docs and
+  opens the story's one Dev PR early, with a **partial** body
+  (allow_partial: true on pr-creator) — real Summary, other sections
+  marked [pending: code not yet implemented].
+- Developer Agent (Stage 4) reuses that same branch/PR — it never
+  opens a second PR — and calls pr-creator with action: "update" to
+  fill in the remaining sections once code exists. If Planner was
+  skipped for a run, pr-creator's create-or-return-existing check
+  transparently creates the PR fresh at Stage 4 instead.
 - App repo Dev PR title: [{{STORY_ID}}] {{story-title}}
 - Test repo PR title: [{{STORY_ID}}] Test automation — {{story-title}}
-- Dev PR required sections:
+- Dev PR required sections (full, non-partial form):
   1. Summary — 2-3 sentence overview
   2. Changes Made — bulleted list of files with reasons
      (docs/{{STORY_ID}}/ bundle + src/ code)
@@ -76,17 +89,22 @@ discipline) instead of repeating rules inline per agent.
   Suggestion, only after human confirms
 
 ## Confluence Page Configuration
-- Space key: AISDLC
-- Page title format: {{STORY_ID}} - {{story-title}} - Batch Summary
-- Batch Summary sections in order:
-  1. Story Overview
-  2. Design Doc Link
-  3. Code Changes Summary
-  4. Code Review Findings
-  5. QA Results (from human-reported test execution)
-  6. Build/Deploy Outcome
-  7. PR References (app repo + test repo)
-- Update page if already exists, create if not
+- Space key: AISDLC (both page types below, no exceptions)
+- Batch Summary page (owned by Confluence Agent, Stage 10):
+  - Page title format: {{STORY_ID}} - {{story-title}} - Batch Summary
+  - Sections in order:
+    1. Story Overview
+    2. Design Doc Link
+    3. Code Changes Summary
+    4. Code Review Findings
+    5. QA Results (from human-reported test execution)
+    6. Build/Deploy Outcome
+    7. PR References (app repo + test repo)
+- Design page (owned by Design Subagent, Stage 1b-3, on human
+  APPROVE of the design doc):
+  - Page title format: {{STORY_ID}} - {{story-title}} - Design
+  - Content: the approved design-{{STORY_ID}}.md content in full
+- Both: update page if already exists, create if not
 - Mark genuinely missing info as [pending] rather than blocking
 
 ## Pipeline Stage Configuration
@@ -116,10 +134,13 @@ docs/{{STORY_ID}}/, so multiple stories in flight never collide:
 - docs/{{STORY_ID}}/impl-plan-{{STORY_ID}}.md    (Planner Subagent output)
 - docs/{{STORY_ID}}/design-{{STORY_ID}}.md       (Design Subagent output)
 
-These three files are written locally and left uncommitted by
-Documentation Agent's subagents. Developer Agent (Stage 4) is the
-first to commit them — as its first commit on the feature branch,
-alongside the code it writes to src/.
+All three files are written locally by Documentation Agent's
+subagents. Planner Subagent commits requirements-{{STORY_ID}}.md
+and impl-plan-{{STORY_ID}}.md (and opens the story's one Dev PR,
+partial body) as soon as its plan is human-approved.
+design-{{STORY_ID}}.md stays uncommitted until Developer Agent
+(Stage 4), which commits it alongside the code it writes to src/ and
+updates the same Dev PR's body.
 
 Every agent/subagent also appends to
 docs/{{STORY_ID}}/pipeline-log.md (via the on_complete hook — see
