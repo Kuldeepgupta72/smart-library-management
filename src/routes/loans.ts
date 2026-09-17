@@ -72,6 +72,76 @@ router.get('/overdue', (_req: Request, res: Response) => {
   }
 });
 
+// POST /api/loans/:id/pay-fine — marks a loan's fine as paid.
+// Status-flag only, no real payment processing (AISDLC-2).
+router.post('/:id/pay-fine', (req: Request, res: Response) => {
+  try {
+    const loanId = Number(req.params.id);
+    if (!Number.isInteger(loanId)) {
+      res.status(400).json({ error: 'id must be an integer' });
+      return;
+    }
+
+    const loan = db.prepare('SELECT id, fine_amount, fine_paid, fine_waived FROM loans WHERE id = ?').get(
+      loanId
+    ) as { id: number; fine_amount: number | null; fine_paid: number; fine_waived: number } | undefined;
+
+    if (!loan) {
+      res.status(404).json({ error: 'Loan not found' });
+      return;
+    }
+    if (loan.fine_amount === null || loan.fine_amount === undefined) {
+      res.status(400).json({ error: 'No fine has been calculated for this loan yet' });
+      return;
+    }
+    if (loan.fine_waived) {
+      res.status(400).json({ error: 'Fine has already been waived' });
+      return;
+    }
+
+    db.prepare('UPDATE loans SET fine_paid = 1 WHERE id = ?').run(loanId);
+    res.status(200).json({ message: 'Fine marked as paid' });
+  } catch (err) {
+    console.error('Failed to mark fine as paid:', err);
+    res.status(500).json({ error: 'Failed to mark fine as paid' });
+  }
+});
+
+// POST /api/loans/:id/waive-fine — marks a loan's fine as waived.
+// No auth/role check, per approved requirement Q4 (AISDLC-2).
+router.post('/:id/waive-fine', (req: Request, res: Response) => {
+  try {
+    const loanId = Number(req.params.id);
+    if (!Number.isInteger(loanId)) {
+      res.status(400).json({ error: 'id must be an integer' });
+      return;
+    }
+
+    const loan = db.prepare('SELECT id, fine_amount, fine_paid, fine_waived FROM loans WHERE id = ?').get(
+      loanId
+    ) as { id: number; fine_amount: number | null; fine_paid: number; fine_waived: number } | undefined;
+
+    if (!loan) {
+      res.status(404).json({ error: 'Loan not found' });
+      return;
+    }
+    if (loan.fine_amount === null || loan.fine_amount === undefined) {
+      res.status(400).json({ error: 'No fine has been calculated for this loan yet' });
+      return;
+    }
+    if (loan.fine_paid) {
+      res.status(400).json({ error: 'Fine has already been paid' });
+      return;
+    }
+
+    db.prepare('UPDATE loans SET fine_waived = 1 WHERE id = ?').run(loanId);
+    res.status(200).json({ message: 'Fine waived' });
+  } catch (err) {
+    console.error('Failed to waive fine:', err);
+    res.status(500).json({ error: 'Failed to waive fine' });
+  }
+});
+
 router.post('/issue', (req: Request, res: Response) => {
   const { book_id, member_id } = req.body as { book_id?: number; member_id?: number };
   if (!book_id || !member_id) {
