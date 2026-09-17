@@ -56,8 +56,18 @@ Read from .github/config/pipeline-config.md:
 5. Return page URL and page ID
 
 ## API Details
+body.storage MUST include "representation": "storage" alongside
+"value" - omitting it causes a server-side 500
+(NullPointerException: ... "fromFormat" is null), not a 400, so it
+is easy to miss until it actually fails against a real instance:
+{"type": "page", "title": "{{page_title}}", "space": {"key": "{{CONFLUENCE_SPACE_KEY}}"}, "ancestors": [{"id": "{{CONFLUENCE_PARENT_PAGE_ID}}"}], "body": {"storage": {"value": "{{html_body}}", "representation": "storage"}}}
+value is Confluence storage-format XHTML (not raw markdown) -
+convert headings/lists/links/code spans to <h2>/<ul><li>/<a
+href>/<code> etc. before sending.
+
 Create: POST {{CONFLUENCE_URL}}/rest/api/content
-Update: PUT {{CONFLUENCE_URL}}/rest/api/content/{{PAGE_ID}}
+Update: PUT {{CONFLUENCE_URL}}/rest/api/content/{{PAGE_ID}} (update also
+requires version: {number: currentVersion + 1} in the body per Step 3)
 Auth: Basic {{CONFLUENCE_EMAIL}}:{{CONFLUENCE_API_TOKEN}} (Confluence Cloud
 classic API tokens reject Bearer auth with 403)
 Content-Type: application/json

@@ -89,8 +89,19 @@ calls match the pipeline's permission allowlist — see
 5. Return page URL and page ID
 
 ## API Details
+`body.storage` MUST include `"representation": "storage"` alongside
+`"value"` — omitting it causes a server-side 500
+(`NullPointerException: ... "fromFormat" is null`), not a 400, so it
+is easy to miss until it actually fails against a real instance:
+```json
+{"type": "page", "title": "{{page_title}}", "space": {"key": "{{CONFLUENCE_SPACE_KEY}}"}, "ancestors": [{"id": "{{CONFLUENCE_PARENT_PAGE_ID}}"}], "body": {"storage": {"value": "{{html_body}}", "representation": "storage"}}}
+```
+`value` is Confluence storage-format XHTML (not raw markdown) —
+convert headings/lists/links/code spans to `<h2>`/`<ul><li>`/`<a
+href>`/`<code>` etc. before sending.
+
 Create: `curl -s -X POST -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "$CONFLUENCE_BASE/wiki/rest/api/content"`
-Update: `curl -s -X PUT -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "$CONFLUENCE_BASE/wiki/rest/api/content/{{PAGE_ID}}"`
+Update: `curl -s -X PUT -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "$CONFLUENCE_BASE/wiki/rest/api/content/{{PAGE_ID}}"` (update also requires `version: {number: currentVersion + 1}` in the body per Step 3)
 
 ## Output
 On success:
