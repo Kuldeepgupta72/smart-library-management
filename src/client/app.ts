@@ -242,14 +242,17 @@ function renderMembersTable(members: Member[]): void {
 }
 
 async function loadMembers(): Promise<void> {
-  const res = await fetch('/api/members');
   // AISDLC-3: GET /api/members now returns a paginated envelope
   // ({ members, page, pageSize, total, totalPages }) instead of a
-  // flat array, mirroring GET /api/books. Read the max allowed
+  // flat array, mirroring GET /api/books. Request the max allowed
   // pageSize (100, matching the server-side cap) so this page
   // continues to show the full member list at a glance, same as
   // the previous unpaginated behavior, without adding pagination
-  // controls to the UI (still out of scope for AISDLC-3).
+  // controls to the UI (still out of scope for AISDLC-3). Members
+  // are ordered oldest-first (id ASC, unchanged), so without this
+  // the default pageSize=20 would hide any member beyond the first
+  // 20 rows once the table grows past that size.
+  const res = await fetch('/api/members?pageSize=100');
   const data = await res.json() as MembersResponse;
   renderMembersTable(data.members);
 }
