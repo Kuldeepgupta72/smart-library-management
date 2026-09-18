@@ -10,14 +10,14 @@ pipeline-rules.md).
 - jira-agent (.github/agents/jira-agent.agent.md)
 
 ## Required Environment Variables
-- JIRA_URL: base URL of Jira instance
+- JIRA_BASE_URL: base URL of Jira instance
 - JIRA_EMAIL: email for authentication
 - JIRA_API_TOKEN: API token for authentication
 - JIRA_PROJECT_KEY: project key (our project: AISDLC)
 
 ## Pre-flight Checks
 Before making any API call:
-- Verify JIRA_URL is set — if not: stop and show error
+- Verify JIRA_BASE_URL is set — if not: stop and show error
 - Verify JIRA_EMAIL is set — if not: stop and show error
 - Verify JIRA_API_TOKEN is set — if not: stop and show error
 - If mode is single-story: verify ID matches format AISDLC-{{NUMBER}}
@@ -29,7 +29,7 @@ Before making any API call:
 Input: Story ID AISDLC-{{NUMBER}}
 Steps:
 1. Build auth header: Basic base64(JIRA_EMAIL:JIRA_API_TOKEN)
-2. GET {{JIRA_URL}}/rest/api/3/issue/{{STORY_ID}}
+2. GET {{JIRA_BASE_URL}}/rest/api/3/issue/{{STORY_ID}}
 3. Extract: summary, description, customfield_10016 (points),
    status.name, assignee.displayName, acceptance criteria
 4. Return structured story data
@@ -37,7 +37,7 @@ Steps:
 ### Mode 2 — Query Backlog
 Input: none (queries whole AISDLC project)
 Steps:
-1. GET {{JIRA_URL}}/rest/api/3/search
+1. GET {{JIRA_BASE_URL}}/rest/api/3/search
    ?jql=project="AISDLC" AND status!=Done AND issuetype=Story
    ORDER BY parent ASC
    (quote the project key — Atlassian's JQL parser rejects an
@@ -53,7 +53,7 @@ Input: a candidate title (e.g. from gap-scanner-agent or a human's
 Stage 0 description)
 Steps:
 1. Build auth header: Basic base64(JIRA_EMAIL:JIRA_API_TOKEN)
-2. GET {{JIRA_URL}}/rest/api/3/search/jql
+2. GET {{JIRA_BASE_URL}}/rest/api/3/search/jql
    ?jql=project="AISDLC" AND summary ~ "\"{{candidate_title}}\""
    (the escaped double-quotes force Jira's text search to match the
    quoted phrase as a whole — this is an exact/near-exact phrase
@@ -77,7 +77,7 @@ Steps:
    Document..."}}. Split {{description + acceptance_criteria}} on
    blank lines into paragraphs:
    `{"fields": {"project": {"key": "AISDLC"}, "issuetype": {"name": "Story"}, "summary": "{{title}}", "description": {"type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "{{paragraph}}"}]}, ...]}}}`
-3. POST {{JIRA_URL}}/rest/api/3/issue with that payload
+3. POST {{JIRA_BASE_URL}}/rest/api/3/issue with that payload
 4. Return the new issue key (e.g. AISDLC-{{NUMBER}}) and its URL
 5. This mode may ONLY create — never update, transition, comment on,
    or delete any issue, including the one it just created
@@ -94,7 +94,7 @@ Mode 4: list of {story_id, summary, status} matches, or empty list
 - 401 Unauthorized: → "Check JIRA_API_TOKEN in your .env file"
 - 404 Not Found: → "Story AISDLC-{{NUMBER}} not found.
   Verify story exists in AISDLC project"
-- 400 Bad Request (Mode 1/2/4): → "Invalid request. Check JIRA_URL format"
+- 400 Bad Request (Mode 1/2/4): → "Invalid request. Check JIRA_BASE_URL format"
 - 400/422 Bad Request (Mode 3 — create payload rejected): →
   "Story creation failed — check the project/issuetype fields are
   valid for this Jira instance"
@@ -103,6 +103,6 @@ Mode 4: list of {story_id, summary, status} matches, or empty list
   instead of ADF — rebuild it per Mode 3 Step 2 and retry with the
   exact same approved content, not a regenerated draft
 - Network timeout: retry once after 5 seconds, then show
-  "Cannot reach Jira. Check JIRA_URL"
+  "Cannot reach Jira. Check JIRA_BASE_URL"
 - Missing fields: return available fields, flag missing ones
 - Empty backlog query result: → "No pending stories found in AISDLC"
