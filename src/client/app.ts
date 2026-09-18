@@ -27,6 +27,14 @@ interface Member {
   email: string;
 }
 
+interface MembersResponse {
+  members: Member[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 interface Loan {
   id: number;
   book_id: number;
@@ -235,8 +243,15 @@ function renderMembersTable(members: Member[]): void {
 
 async function loadMembers(): Promise<void> {
   const res = await fetch('/api/members');
-  const members = await res.json() as Member[];
-  renderMembersTable(members);
+  // AISDLC-3: GET /api/members now returns a paginated envelope
+  // ({ members, page, pageSize, total, totalPages }) instead of a
+  // flat array, mirroring GET /api/books. Read the max allowed
+  // pageSize (100, matching the server-side cap) so this page
+  // continues to show the full member list at a glance, same as
+  // the previous unpaginated behavior, without adding pagination
+  // controls to the UI (still out of scope for AISDLC-3).
+  const data = await res.json() as MembersResponse;
+  renderMembersTable(data.members);
 }
 
 async function searchMembers(query: string): Promise<void> {
@@ -275,11 +290,12 @@ async function loadAvailableBooksSelect(): Promise<void> {
 }
 
 async function loadMembersSelect(): Promise<void> {
-  const res = await fetch('/api/members');
-  const members = await res.json() as Member[];
+  const res = await fetch('/api/members?pageSize=100');
+  // AISDLC-3: same paginated-envelope change as loadMembers() above.
+  const data = await res.json() as MembersResponse;
   const select = document.getElementById('issue-member-select') as HTMLSelectElement;
   select.innerHTML = '<option value="">-- Select a Member --</option>';
-  members.forEach(m => {
+  data.members.forEach(m => {
     const opt = document.createElement('option');
     opt.value = String(m.id);
     opt.textContent = m.name;
