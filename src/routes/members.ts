@@ -21,6 +21,13 @@ router.get('/', (req: Request, res: Response) => {
   try {
     const { page, pageSize } = parsePagination(req.query.page, req.query.pageSize);
 
+    // NOTE: unlike books.ts's count query (which mirrors its WHERE
+    // clause), this COUNT(*) is intentionally unfiltered because
+    // GET /api/members has no filter query params today. If a filter
+    // is ever added here, this count query MUST be updated to apply
+    // the same WHERE clause as the SELECT below, or total/totalPages
+    // will silently drift out of sync with the returned page of rows
+    // (see design-AISDLC-3.md Self-Review Findings).
     const countRow = db.prepare('SELECT COUNT(*) AS total FROM members').get() as { total: number };
     const total = countRow.total;
     const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
