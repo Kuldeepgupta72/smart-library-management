@@ -3,6 +3,28 @@
 All notable changes to this project are recorded here, one entry per
 completed Agentic SDLC pipeline batch.
 
+## AISDLC-3 — Add pagination to members list — 2026-09-18
+
+- **Summary:** Added `page`/`pageSize` query parameter pagination to
+  `GET /api/members`, matching the existing `GET /api/books` pattern
+  (AISDLC-18). Extracted the shared `parsePagination` helper into
+  `src/utils/pagination.ts` for reuse by both endpoints. Follow-up
+  fixes to `src/client/app.ts` (frontend) and the test repo's
+  `LoanSeeder` were required after Stage 9 test execution surfaced a
+  response-shape regression and test-infrastructure gaps (see Test
+  Results below).
+- **Dev PR:** #3 (docs-only, merged prematurely, superseded), #4
+  (implementation, merged), #5 (pipeline-log correction, merged), #6
+  (JIRA_BASE_URL housekeeping, merged), #7 (frontend envelope fix,
+  merged), #8 (frontend pageSize fix, merged), #9 (evidence log)
+- **Design Doc:** [Confluence](https://kuldeepgupta721990.atlassian.net/wiki/spaces/AISDLC/pages/23822337/AISDLC-3+-+Add+pagination+to+members+list+-+Design)
+- **Test Automation PR:** #2 (test repo, merged), #3 (test repo,
+  LoanSeeder cleanup fix, merged), #4 (test repo, SQLite busy_timeout
+  fix, merged)
+- **Test Results:** 22 passed, 0 failed (see `tests/evidence/test-run-AISDLC-3-20260918-145655.log`)
+- **Deployment:** Confirmed reachable at http://localhost:5050
+- **Batch Summary:** [Confluence](https://kuldeepgupta721990.atlassian.net/wiki/spaces/AISDLC/pages/23855105/AISDLC-3+-+Add+pagination+to+members+list+-+Batch+Summary)
+
 ## AISDLC-2 — Add overdue-loan fines — 2026-09-17
 
 - **Summary:** Added flat-rate fine calculation (`fine = flat_rate * days_overdue`)
