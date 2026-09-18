@@ -75,7 +75,7 @@ hands off a chosen story.
 
 ### Backlog Mode (no story ID given)
 1. Load jira-reader skill, run pre-flight checks
-   (JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN must be set)
+   (JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN must be set)
 2. Query backlog (jira-reader Mode 2): all AISDLC issues not Done,
    filtered to issuetype=Story only — never show Sub-tasks, Tasks,
    or Bugs in this list
