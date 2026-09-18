@@ -1,0 +1,71 @@
+AISDLC-3 — Stage 9 Test Execution Evidence Log
+================================================
+
+Story: AISDLC-3 (Add pagination to members list)
+Timestamp: 2026-09-18T09:26:55Z
+Reported by: human (via chat, confirmed "Testing complete")
+Test repo PR: Kuldeepgupta72/smart-library-management-playwright #2
+  (features/library-AISDLC-3.feature, 8 scenarios: 5 core + 3 regression)
+
+Results
+-------
+Passed:  22
+Failed:  0
+Skipped: 0
+Total:   22
+
+Status: PASSED
+
+Notes
+-----
+This run followed a multi-round debugging cycle after the human
+initially reported: "Test is passing but for AISDLC-2 testcases are
+failing" (9 unexpected failures on first run). Root causes found and
+fixed, each verified against a fresh Playwright HTML report parsed
+directly from the local report server:
+
+Run 1 (total=22, expected=13, unexpected=9):
+  All 9 failures in library-AISDLC-2.feature.spec.js, toBeVisible
+  timeouts on #members-list tbody tr. Root cause: GET /api/members
+  (AISDLC-3) changed from a flat array to a paginated envelope
+  ({ members, page, pageSize, total, totalPages }); the frontend
+  (src/client/app.ts) still treated the response as Member[], so
+  .map()/.forEach() silently failed and the members table/Issue Book
+  dropdown never rendered.
+  Fix: app repo PR #7 (loadMembers/loadMembersSelect read data.members).
+
+Run 2 (total=22, unexpected=9, unchanged):
+  PR #7's fetch call never actually added ?pageSize=100 despite the
+  comment saying it would; default pageSize=20 vs 85 existing members
+  (id ASC, oldest-first) meant new members still fell off page 1.
+  Fix: app repo PR #8 (actually add ?pageSize=100 to loadMembers()).
+
+Run 3 (total=22, unexpected=7, improved):
+  Same "element not found" pattern recurring because total members
+  had grown to 98 (near/over the 100 pageSize cap) — AISDLC-2 test
+  scenarios create a member per run with no cleanup.
+  Fix: test repo PR #3 (LoanSeeder.cleanup() deletes seeded
+  loans/members/books instead of just marking loans returned).
+  Also manually purged 90 stale aisdlc2.fine.* test members left
+  over from prior runs (111 -> 21 members) to reset the baseline.
+
+Run 4 (total=22, unexpected=4, improved further):
+  New failure mode: "database is locked" on the loanSeeder fixture/
+  After Hooks (plus 1-2 cascading timeouts/false results). Root
+  cause: playwright.config.ts fullyParallel workers each open a
+  separate node:sqlite connection to the same shared library.db as
+  the app server, with no busy_timeout set, so concurrent writes
+  raised SQLITE_BUSY immediately instead of retrying.
+  Fix: test repo PR #4 (PRAGMA busy_timeout=5000 on the LoanSeeder
+  connection; batched cleanup()'s deletes into one transaction).
+
+Run 5 (this run): total=22, expected=22, unexpected=0. Clean pass.
+
+All fixes have been merged to main in both repos:
+  App repo:  PR #7, #8 (+ housekeeping PR #5, #6)
+  Test repo: PR #3, #4
+
+AISDLC-3 pagination scenarios: all passing.
+AISDLC-2 regression scenarios: all passing (no functional regression
+in fine calculation/pay/waive logic itself — failures were entirely
+UI-rendering/test-infrastructure issues, now resolved).
