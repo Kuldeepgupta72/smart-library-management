@@ -1,15 +1,12 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/database';
 import { isDuplicateIsbn } from '../validators';
+import { parsePagination } from '../utils/pagination';
 
 const router = Router();
 
 type Availability = 'available' | 'not_available' | undefined;
 type Sort = 'title' | 'author';
-
-const DEFAULT_PAGE = 1;
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
 
 /**
  * Parses and validates the `availability` query param.
@@ -35,27 +32,6 @@ function parseSort(raw: unknown): Sort {
     return raw === 'author' ? 'author' : 'title';
   } catch (err) {
     return 'title';
-  }
-}
-
-/**
- * Parses and validates `page`/`pageSize` query params.
- * Non-numeric, non-integer, or non-positive values fall back to
- * sane defaults; `pageSize` is capped at MAX_PAGE_SIZE to prevent
- * unbounded queries against SQLite.
- */
-function parsePagination(rawPage: unknown, rawPageSize: unknown): { page: number; pageSize: number } {
-  try {
-    const pageNum = Number(rawPage);
-    const page = Number.isInteger(pageNum) && pageNum > 0 ? pageNum : DEFAULT_PAGE;
-
-    const pageSizeNum = Number(rawPageSize);
-    const requestedPageSize = Number.isInteger(pageSizeNum) && pageSizeNum > 0 ? pageSizeNum : DEFAULT_PAGE_SIZE;
-    const pageSize = Math.min(requestedPageSize, MAX_PAGE_SIZE);
-
-    return { page, pageSize };
-  } catch (err) {
-    return { page: DEFAULT_PAGE, pageSize: DEFAULT_PAGE_SIZE };
   }
 }
 
