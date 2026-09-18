@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/database';
 import { isValidEmail } from '../validators';
+import { parsePagination } from '../utils/pagination';
 
 const router = Router();
 
@@ -16,9 +17,31 @@ router.get('/search', (req: Request, res: Response) => {
   res.json(members);
 });
 
-router.get('/', (_req: Request, res: Response) => {
-  const members = db.prepare('SELECT * FROM members ORDER BY id ASC').all();
-  res.json(members);
+router.get('/', (req: Request, res: Response) => {
+  try {
+    const { page, pageSize } = parsePagination(req.query.page, req.query.pageSize);
+
+    // NOTE: unlike books.ts's count query (which mirrors its WHERE
+    // clause), this COUNT(*) is intentionally unfiltered because
+    // GET /api/members has no filter query params today. If a filter
+    // is ever added here, this count query MUST be updated to apply
+    // the same WHERE clause as the SELECT below, or total/totalPages
+    // will silently drift out of sync with the returned page of rows
+    // (see design-AISDLC-3.md Self-Review Findings).
+    const countRow = db.prepare('SELECT COUNT(*) AS total FROM members').get() as { total: number };
+    const total = countRow.total;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+
+    const offset = (page - 1) * pageSize;
+    const members = db.prepare(
+      'SELECT id, name, email FROM members ORDER BY id ASC LIMIT ? OFFSET ?'
+    ).all(pageSize, offset);
+
+    res.json({ members, page, pageSize, total, totalPages });
+  } catch (err) {
+    console.error('Failed to load members:', err);
+    res.status(500).json({ error: 'Failed to load members' });
+  }
 });
 
 router.post('/', (req: Request, res: Response) => {

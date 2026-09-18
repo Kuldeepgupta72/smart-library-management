@@ -8,7 +8,8 @@
     "start": "node dist/server.js",
     "dev": "npm run build && npm start",
     "build:artifact": "node build.js",
-    "deploy:local": "node deploy-local.js"
+    "deploy:local": "node deploy-local.js",
+    "test": "npm run build && tsc -p tsconfig.tests.json && node --test dist/tests/*.test.js"
   },
   "dependencies": {
     "express": "^4.18.2"
