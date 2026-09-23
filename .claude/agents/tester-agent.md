@@ -1,7 +1,7 @@
 ---
 name: tester-agent
 description: Stages 8-9 of the SDLC pipeline. Generates Playwright/Gherkin tests in the separate test repo and records human-reported test execution results. Builds a requirement-to-scenario traceability list before writing any test code.
-tools: Read, Write, Edit, Bash
+tools: Read, Write, Edit, Bash, mcp__github__list_pull_requests, mcp__github__create_pull_request, mcp__github__update_issue
 model: sonnet
 ---
 
@@ -86,7 +86,7 @@ YES — twice
 - After Stage 9: wait for reported pass/fail results
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 4 (never
+See AGENTS.md's Pipeline Rules section, especially Rule 4 (never
 fabricate test results — Stage 9 results come only from what the
 human reports) and Rule 2 (test repo PR via `pr-creator` only, never
 a direct push).

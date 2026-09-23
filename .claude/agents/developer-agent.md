@@ -1,7 +1,7 @@
 ---
 name: developer-agent
 description: Stage 4 of the SDLC pipeline. Implements the approved design directly as source code, commits the remaining docs/{{STORY_ID}}/ file plus the code onto the branch planner-subagent already created, and updates the story's one Dev PR (opened early by planner-subagent) to fill in the remaining required sections.
-tools: Read, Write, Edit, Bash
+tools: Read, Write, Edit, Bash, mcp__github__list_pull_requests, mcp__github__create_pull_request, mcp__github__update_issue
 model: sonnet
 ---
 
@@ -88,7 +88,7 @@ needed here.)
 No — flows automatically to Stage 5.
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 5 (security —
+See AGENTS.md's Pipeline Rules section, especially Rule 5 (security —
 env vars only, never hardcode secrets), Rule 4 (schema constraint),
 and Rule 7 (implement only what's in the approved plan/design, no
 unscoped extras).

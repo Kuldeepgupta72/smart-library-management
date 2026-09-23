@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "github": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; source ./.env; export GITHUB_PERSONAL_ACCESS_TOKEN=\"$GITHUB_TOKEN\"; exec npx -y @modelcontextprotocol/server-github"
+      ]
+    },
+    "jira": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; source ./.env; export ATLASSIAN_SITE_NAME=\"$(echo \"$JIRA_URL\" | sed -E 's#^https?://([^./]+)\\..*#\\1#')\" ATLASSIAN_USER_EMAIL=\"$JIRA_EMAIL\" ATLASSIAN_API_TOKEN=\"$JIRA_API_TOKEN\"; exec npx -y @aashari/mcp-server-atlassian-jira"
+      ]
+    },
+    "confluence": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; source ./.env; export ATLASSIAN_SITE_NAME=\"$(echo \"$CONFLUENCE_URL\" | sed -E 's#^https?://([^./]+)\\..*#\\1#')\" ATLASSIAN_USER_EMAIL=\"$CONFLUENCE_EMAIL\" ATLASSIAN_API_TOKEN=\"$CONFLUENCE_API_TOKEN\"; exec npx -y @aashari/mcp-server-atlassian-confluence"
+      ]
+    }
+  }
+}

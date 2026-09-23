@@ -40,7 +40,7 @@ YES — human performs the build/run steps locally and confirms
 before the pipeline proceeds.
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`. No skills beyond the hooks
+See AGENTS.md's Pipeline Rules section. No skills beyond the hooks
 log write, so most rules don't apply here — this stage is purely a
 manual-action confirmation gate.
 

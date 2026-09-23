@@ -81,7 +81,7 @@ APPROVE/REJECT on the create draft) — this agent's own checkpoint
 (picking candidates) does not substitute for those.
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 1 (this agent
+See AGENTS.md's Pipeline Rules section, especially Rule 1 (this agent
 must NEVER reference Jira credentials or call the Jira API directly
 — all Jira interaction happens exclusively through a hand-off to
 `jira-agent`) and Rule 4 (never invent facts — every candidate must

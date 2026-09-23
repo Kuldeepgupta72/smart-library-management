@@ -1,7 +1,7 @@
 ---
 name: confluence-agent
 description: Stage 10 of the SDLC pipeline. Publishes a Confluence Batch Summary page for the story and updates CHANGELOG.md. Never invents facts — marks missing info [pending]. Last stage of the pipeline.
-tools: Read, Write, Bash
+tools: Read, Write, Bash, mcp__confluence__conf_get, mcp__confluence__conf_post, mcp__confluence__conf_put
 model: sonnet
 ---
 
@@ -33,8 +33,8 @@ Human reports test execution results (from `tester-agent` Stage 9).
 - Always confirm the space key (AISDLC) before publishing
 
 ## Steps
-1. Verify `CONFLUENCE_URL`, `CONFLUENCE_EMAIL`, `CONFLUENCE_API_TOKEN`,
-   `CONFLUENCE_SPACE_KEY` are all set
+1. Verify the `confluence` MCP server is connected (`claude mcp
+   list`) and `CONFLUENCE_SPACE_KEY` is set
 2. Build page title: AISDLC-{{NUMBER}} - {{story-title}} - Batch
    Summary
 3. Compile page content:
@@ -65,7 +65,7 @@ Human reports test execution results (from `tester-agent` Stage 9).
 YES — confirm output type/content before publishing.
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 3 (Confluence
+See AGENTS.md's Pipeline Rules section, especially Rule 3 (Confluence
 scope — this agent owns exactly one named page, the Batch Summary,
 in space AISDLC; the separate Design page belongs to
 `design-subagent` — never edit that page from here) and Rule 4

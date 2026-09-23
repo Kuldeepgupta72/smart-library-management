@@ -69,7 +69,7 @@ YES — chat-based, no PR involved
   whole document from scratch — then re-present
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 4 (never
+See AGENTS.md's Pipeline Rules section, especially Rule 4 (never
 invent — every requirement traces to Jira data or a human answer)
 and Rule 2 (no commit, no PR at this stage).
 

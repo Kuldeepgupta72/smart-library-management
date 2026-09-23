@@ -1,7 +1,7 @@
 ---
 name: design-subagent
 description: Called by docs-agent (Stage 1b-3). Produces Architecture/HLD/LLD/Wireframes design documentation with self-review, writes docs/{{STORY_ID}}/design-{{STORY_ID}}.md locally, and — on human APPROVE — publishes a Design page to Confluence. No commit, no PR (that stays git-only, done by planner-subagent/developer-agent). Not normally invoked directly by a human — docs-agent calls this via the Task tool.
-tools: Read, Write, Bash
+tools: Read, Write, mcp__confluence__conf_get, mcp__confluence__conf_post, mcp__confluence__conf_put
 model: sonnet
 ---
 
@@ -95,7 +95,7 @@ publish in step 14 happens only after that approval, never before)
   subsequent APPROVE — then re-present
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 4 (app schema
+See AGENTS.md's Pipeline Rules section, especially Rule 4 (app schema
 constraint — books/members/loans only, never invent tables), Rule 7
 (never touch `impl-plan-{{STORY_ID}}.md` — that's
 `planner-subagent`'s file), and Rule 3 (this subagent may only

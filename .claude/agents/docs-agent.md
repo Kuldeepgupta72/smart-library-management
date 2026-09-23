@@ -66,7 +66,7 @@ APPROVE does that subagent's own git/GitHub/Confluence action (if
 any) happen — see each subagent's own Human Checkpoint section.
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 2:
+See AGENTS.md's Pipeline Rules section, especially Rule 2:
 Requirements/Design subagents never commit or open a PR — local
 files only. Planner Subagent is the one exception: on APPROVE, it
 commits the approved requirements + plan and opens the story's one

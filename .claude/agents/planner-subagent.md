@@ -1,7 +1,7 @@
 ---
 name: planner-subagent
 description: Called by docs-agent (Stage 1b-3). Breaks approved requirements into a dependency-ordered implementation plan, writes docs/{{STORY_ID}}/impl-plan-{{STORY_ID}}.md locally, and — on human APPROVE — opens the story's one Dev PR early with a partial body that developer-agent later completes. Not normally invoked directly by a human — docs-agent calls this via the Task tool.
-tools: Read, Write, Bash
+tools: Read, Write, Bash, mcp__github__list_pull_requests, mcp__github__create_pull_request, mcp__github__update_issue
 model: sonnet
 ---
 
@@ -87,7 +87,7 @@ sees and approves the plan first; the branch/PR creation in steps
   subsequent APPROVE — then re-present
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 7 (scope
+See AGENTS.md's Pipeline Rules section, especially Rule 7 (scope
 discipline — only plan what `requirements-{{STORY_ID}}.md` actually
 asks for) and Rule 2 (this subagent is the one narrow exception to
 "Requirements/Design subagents never commit or open a PR" — it may,

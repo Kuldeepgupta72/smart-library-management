@@ -1,24 +1,39 @@
 ---
 name: pr-creator
-description: Create or update a Pull Request in either the app repo or the test repo via the GitHub REST API, enforcing required PR body sections. Use whenever planner-subagent, developer-agent, or tester-agent needs to open or update a PR.
+description: Create or update a Pull Request in either the app repo or the test repo via the project's `github` MCP server, enforcing required PR body sections. Use whenever planner-subagent, developer-agent, or tester-agent needs to open or update a PR.
 ---
 
 # PR Creator Skill
 
 ## Purpose
 Create or update a Pull Request in either the app repo or the test
-repo via the GitHub REST API.
+repo via the project-scoped `github` MCP server (configured in
+`.mcp.json`, backed by `@modelcontextprotocol/server-github`).
 
 ## Used By
 - `planner-subagent` (app repo — opens the Dev PR early, partial body)
 - `developer-agent` (app repo — reuses the same Dev PR, updates its body)
 - `tester-agent` (test repo — Test PR)
 
-## Required Environment Variables
-- `GITHUB_TOKEN`: must have repo and pull_requests scope
+## Required Tools
+- `mcp__github__list_pull_requests` — check for an existing PR on the branch
+- `mcp__github__create_pull_request` — open a new PR
+- `mcp__github__update_issue` — update an existing PR's title/body
+  (GitHub stores PR title/body on the underlying issue record, so
+  `update_issue` with the PR's number as `issue_number` is the
+  correct tool — there is no separate `update_pull_request` tool)
+- **Never call** `mcp__github__merge_pull_request` — merging is
+  always a manual human action (Rule 2, AGENTS.md's Pipeline Rules section); this
+  skill only ever creates or updates PRs, never merges them
+
+## Required Environment Variables (read by the `github` MCP server itself)
 - `GITHUB_REPO_NAME`: app repo, owner/repo format
 - `GITHUB_TEST_REPO_NAME`: test repo, owner/repo format
 - `GITHUB_DEFAULT_BRANCH`: base branch for PR target
+
+This skill does not read `GITHUB_TOKEN` itself — the `github` MCP
+server holds it (loaded from `.env` at server startup, per
+`.mcp.json`).
 
 ## Input
 - repo_target: "app" or "test"
@@ -34,56 +49,41 @@ repo via the GitHub REST API.
   needs a `Summary` section; any section not yet knowable (e.g.
   `Changes Made` before code exists) must be explicitly marked
   `[pending: ...]` rather than omitted silently
-- action: optional, default "create". Set to "update" to PATCH an
+- action: optional, default "create". Set to "update" to update an
   already-existing PR's title/body in place (developer-agent uses
   this to fill in the sections planner-subagent marked `[pending]`)
 
 ## Pre-flight Checks
-Before making any API call, load environment variables from `.env`
-into the same shell invocation. Do NOT use `source .env` /
-`set -a; source .env` — `.env` values may contain shell-special
-characters (`&`, `$`, backticks, etc.) that `source` will interpret
-as shell syntax instead of literal text, silently dropping the
-assignment. Instead read it line-by-line and export each value
-literally:
-```
-while IFS='=' read -r key value; do
-  case "$key" in ''|'#'*) continue ;; esac
-  value="${value%$'\r'}"
-  export "$key=$value"
-done < .env
-```
-(or the PowerShell equivalent, splitting each line on the first `=`
-only). This keeps values out of context — never printed, never
-opened via the Read tool (per Rule 5). `GITHUB_TOKEN` is the same
-token used for both the app repo and the test repo — one load
-covers both `repo_target` values. Then:
-- Verify `GITHUB_TOKEN` is set
-- Verify the env variable for the selected repo_target is set
+- Resolve `owner`/`repo` from `GITHUB_REPO_NAME` or
+  `GITHUB_TEST_REPO_NAME` depending on `repo_target`
 - Verify source_branch exists on remote
 - Verify pr_body contains all required sections for repo_target,
   unless `allow_partial` is true, in which case only `Summary` is
   required and any other missing section must be marked `[pending: ...]`
 - If any required section missing: stop and request missing content
+- If the `mcp__github__*` tools aren't available, stop and tell the
+  human: "The `github` MCP server isn't connected — run `claude mcp
+  list` to check its status, or restart the session after approving
+  it."
 
 ## Steps
 1. Run pre-flight checks
-2. Resolve target repo from repo_target
+2. Resolve target repo (`owner`, `repo`) from repo_target
 3. Validate PR body sections present (full check, or partial check
    if `allow_partial`)
-4. Check if PR already exists for this branch in that repo:
-   `curl -s -X GET -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/{{repo}}/pulls?head={{owner}}:{{source_branch}}"`
+4. Check if PR already exists for this branch — call
+   `mcp__github__list_pull_requests` with `owner`, `repo`,
+   `head: "{{owner}}:{{source_branch}}"`, `state: "open"`
 5. If PR exists and `action` is "create" (default): return existing
    PR URL and stop — never open a second PR for the same branch
-6. If PR exists and `action` is "update": PATCH its title/body
-   (always this exact flag order/shape so it matches the pipeline's
-   permission allowlist — see `.claude/settings.json`):
-   `curl -s -X PATCH -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "https://api.github.com/repos/{{repo}}/pulls/{{pr_number}}"`
-   Body: only the fields being changed (typically `body`, sometimes
-   `title`). Return the updated PR URL and stop
-7. If PR does not exist (regardless of `action`): make POST request:
-   `curl -s -X POST -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "https://api.github.com/repos/{{repo}}/pulls"`
-   Body: title, head branch, base branch, body
+6. If PR exists and `action` is "update": call
+   `mcp__github__update_issue` with `owner`, `repo`,
+   `issue_number: {{pr_number}}`, and only the fields being changed
+   (typically `body`, sometimes `title`). Return the updated PR URL
+   and stop
+7. If PR does not exist (regardless of `action`): call
+   `mcp__github__create_pull_request` with `owner`, `repo`, `title`,
+   `head: source_branch`, `base: GITHUB_DEFAULT_BRANCH`, `body`
 8. Return PR URL and PR number
 
 ## Output
@@ -95,10 +95,10 @@ On success:
 - status: created, updated, or already_exists
 
 ## Error Handling
-- `GITHUB_TOKEN` missing:
-  → Show: "Set GITHUB_TOKEN in your .env file"
-- Insufficient token permissions:
-  → Show: "GITHUB_TOKEN needs repo and pull_requests scope"
+- `mcp__github__*` tool call fails with an auth/permission error:
+  → Show: "The `github` MCP server's credentials are invalid or
+    lack repo/pull_requests scope — check GITHUB_TOKEN in .env and
+    restart the session so the MCP server reloads it"
 - Source branch not found:
   → Show: "Branch {{source_branch}} not found on remote.
            Ensure git-committer pushed the branch"
@@ -112,5 +112,8 @@ On success:
   → Do not create/update PR until all required sections present
 - Missing `Summary` under `allow_partial`:
   → Even a partial PR body must have a Summary — stop and request it
-- 422 Validation error:
-  → Show full error message from GitHub API
+- 422 Validation error from the tool call:
+  → Show full error message returned by the MCP tool
+- MCP tool call times out or errors with a connection failure:
+  → "Cannot reach the `github` MCP server. Run `claude mcp list` to
+    check its status"

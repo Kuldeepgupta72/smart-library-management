@@ -9,15 +9,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(while IFS='=' read -r key value; do*)",
-      "Bash(curl -s -G -u \"$JIRA_EMAIL:$JIRA_API_TOKEN\" *)",
-      "Bash(curl -s -X POST -u \"$JIRA_EMAIL:$JIRA_API_TOKEN\" *)",
-      "Bash(curl -s -G -u \"$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN\" *)",
-      "Bash(curl -s -X POST -u \"$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN\" *)",
-      "Bash(curl -s -X PUT -u \"$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN\" *)",
-      "Bash(curl -s -X GET -H \"Authorization: Bearer $GITHUB_TOKEN\" *)",
-      "Bash(curl -s -X POST -H \"Authorization: Bearer $GITHUB_TOKEN\" *)",
-      "Bash(curl -s -X PATCH -H \"Authorization: Bearer $GITHUB_TOKEN\" *)"
+      "Bash(while IFS='=' read -r key value; do*)"
     ]
   },
   "hooks": {

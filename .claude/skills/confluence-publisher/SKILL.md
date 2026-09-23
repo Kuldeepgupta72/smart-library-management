@@ -1,12 +1,14 @@
 ---
 name: confluence-publisher
-description: Create or update a Confluence page (Batch Summary or Design), scoped to the AISDLC space, one named page per story per caller. Use only from confluence-agent or design-subagent, and never invent page content — missing info stays [pending].
+description: Create or update a Confluence page (Batch Summary or Design), scoped to the AISDLC space, one named page per story per caller, via the project's `confluence` MCP server. Use only from confluence-agent or design-subagent, and never invent page content — missing info stays [pending].
 ---
 
 # Confluence Publisher Skill
 
 ## Purpose
-Create or update a Confluence page via REST API — either the Batch
+Create or update a Confluence page via the project-scoped
+`confluence` MCP server (configured in `.mcp.json`, backed by
+`@aashari/mcp-server-atlassian-confluence`) — either the Batch
 Summary page (confluence-agent) or the Design page (design-subagent).
 The create/update mechanics (search-by-title, then update-or-create)
 are identical for both; only `page_title`/`page_content` differ.
@@ -17,10 +19,21 @@ are identical for both; only `page_title`/`page_content` differ.
 - `design-subagent` (`.claude/agents/design-subagent.md`) — Design
   page
 
-## Required Environment Variables
-- `CONFLUENCE_URL`: base URL of Confluence instance
-- `CONFLUENCE_EMAIL`: Atlassian account email associated with the API token
-- `CONFLUENCE_API_TOKEN`: API token for authentication
+## Required Tools
+- `mcp__confluence__conf_get` — search for an existing page by title
+- `mcp__confluence__conf_post` — create a new page
+- `mcp__confluence__conf_put` — update an existing page's content
+- **Never call** `mcp__confluence__conf_patch` or
+  `mcp__confluence__conf_delete` — the `confluence` MCP server
+  exposes all five HTTP-verb tools, but this skill only ever needs
+  get/post/put, and Rule 3 (AGENTS.md's Pipeline Rules section) forbids deleting
+  pages entirely.
+
+## Required Environment Variables (for context only — do not read these)
+The `confluence` MCP server holds `CONFLUENCE_URL`/`CONFLUENCE_EMAIL`/
+`CONFLUENCE_API_TOKEN` itself (loaded from `.env` at server startup,
+per `.mcp.json`). This skill still needs, from `.env` via the agent's
+normal config/env lookup (not by reading `.env` into context):
 - `CONFLUENCE_SPACE_KEY`: target space key (AISDLC)
 
 ## Optional Environment Variables
@@ -38,53 +51,28 @@ Read from `.claude/config/pipeline-config.md`:
 - parent_page_id: optional, from `CONFLUENCE_PARENT_PAGE_ID`
 
 ## Pre-flight Checks
-Before making any API call, load environment variables from `.env`
-into the same shell invocation that will run the API call. Do NOT
-use `source .env` / `set -a; source .env` — `.env` values may
-contain shell-special characters (`&`, `$`, backticks, etc., e.g. a
-Confluence URL with a query string) that `source` will interpret as
-shell syntax instead of literal text, silently dropping the
-assignment. Instead read it line-by-line and export each value
-literally:
-```
-while IFS='=' read -r key value; do
-  case "$key" in ''|'#'*) continue ;; esac
-  value="${value%$'\r'}"
-  export "$key=$value"
-done < .env
-```
-(or the PowerShell equivalent, splitting each line on the first `=`
-only). This keeps values out of context — never printed, never
-opened via the Read tool (per Rule 5). `CONFLUENCE_URL` may be a
-full page/UI URL rather than a bare origin — derive just the origin
-for API calls, e.g.
-`CONFLUENCE_BASE=$(echo "$CONFLUENCE_URL" | grep -oE '^https?://[^/]+')`,
-and build requests as `{{CONFLUENCE_BASE}}/wiki/rest/api/content` (or
-the correct API path for this instance). Auth is Basic (Confluence
-Cloud classic API tokens reject `Authorization: Bearer` with 403) —
-use `-u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN"`, same pattern as
-`jira-reader`. Then:
-- Verify `CONFLUENCE_URL` is set
-- Verify `CONFLUENCE_EMAIL` is set
-- Verify `CONFLUENCE_API_TOKEN` is set
-- Verify `CONFLUENCE_SPACE_KEY` is set
+- Verify `CONFLUENCE_SPACE_KEY` is set (this is the only credential-
+  adjacent value this skill needs directly; the MCP server handles
+  the rest)
 - Verify page_title is not empty
 - Verify page_content is not empty
 - Never invent facts — any missing input must be marked [pending]
+- If the `mcp__confluence__*` tools aren't available, stop and tell
+  the human: "The `confluence` MCP server isn't connected — run
+  `claude mcp list` to check its status, or restart the session
+  after approving it."
 
 ## Steps
-Always use this exact curl flag order/shape (auth header first) so
-calls match the pipeline's permission allowlist — see
-`.claude/settings.json`:
 1. Run pre-flight checks
-2. Search for existing page with same title in space:
-   `curl -s -G -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" --data-urlencode "title={{page_title}}" --data-urlencode "spaceKey=$CONFLUENCE_SPACE_KEY" "$CONFLUENCE_BASE/wiki/rest/api/content"`
+2. Search for existing page with same title in space — call
+   `mcp__confluence__conf_get` with `path: "/wiki/rest/api/content"`
+   and `queryParams: {"title": "{{page_title}}", "spaceKey": "{{CONFLUENCE_SPACE_KEY}}"}`
 3. If page exists:
-   - Get current version number
-   - Update page with PUT request
+   - Get current version number from the search result
+   - Update page via `mcp__confluence__conf_put` (Step 5)
    - Increment version number by 1
 4. If page does not exist:
-   - Create new page with POST request
+   - Create new page via `mcp__confluence__conf_post` (Step 5)
    - Set parent page if `CONFLUENCE_PARENT_PAGE_ID` provided
 5. Return page URL and page ID
 
@@ -100,8 +88,13 @@ is easy to miss until it actually fails against a real instance:
 convert headings/lists/links/code spans to `<h2>`/`<ul><li>`/`<a
 href>`/`<code>` etc. before sending.
 
-Create: `curl -s -X POST -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "$CONFLUENCE_BASE/wiki/rest/api/content"`
-Update: `curl -s -X PUT -u "$CONFLUENCE_EMAIL:$CONFLUENCE_API_TOKEN" -H "Content-Type: application/json" -d '{{json_body}}' "$CONFLUENCE_BASE/wiki/rest/api/content/{{PAGE_ID}}"` (update also requires `version: {number: currentVersion + 1}` in the body per Step 3)
+Create: call `mcp__confluence__conf_post` with
+`path: "/wiki/rest/api/content"` and `body: {{json_body above}}`
+
+Update: call `mcp__confluence__conf_put` with
+`path: "/wiki/rest/api/content/{{PAGE_ID}}"` and
+`body: {{json_body above, plus "version": {"number": currentVersion + 1}}}`
+(the version bump is required per Step 3)
 
 ## Output
 On success:
@@ -112,18 +105,21 @@ On success:
 - status: success
 
 ## Error Handling
-- `CONFLUENCE_EMAIL` missing:
-  → Show: "Set CONFLUENCE_EMAIL in your .env file"
-- `CONFLUENCE_API_TOKEN` missing:
-  → Show: "Set CONFLUENCE_API_TOKEN in your .env file"
+- 401 from a tool call:
+  → Show: "The `confluence` MCP server's credentials are invalid —
+    check CONFLUENCE_EMAIL/CONFLUENCE_API_TOKEN in .env and restart
+    the session so the MCP server reloads them"
+- `CONFLUENCE_SPACE_KEY` missing:
+  → Show: "Set CONFLUENCE_SPACE_KEY in your .env file"
 - Space not found:
   → Show: "Space AISDLC not found.
            Check CONFLUENCE_SPACE_KEY in .env file"
-- Permission denied:
+- Permission denied (403):
   → Show: "Token lacks permission to write to this space"
 - Page title conflict:
   → Append story ID to make title unique, retry creation
 - Content too large:
   → Split into parent page and child pages
-- 401 Unauthorized:
-  → Show: "CONFLUENCE_API_TOKEN is invalid or expired"
+- MCP tool call times out or errors with a connection failure:
+  → "Cannot reach the `confluence` MCP server. Run `claude mcp list`
+    to check its status"

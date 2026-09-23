@@ -15,7 +15,7 @@ internal stage/subagent.
 
 ## Rules
 Every agent/subagent follows the shared, numbered guardrail set in
-`.claude/rules/pipeline-rules.md` (also folded into `CLAUDE.md`):
+AGENTS.md's Pipeline Rules section:
 Jira read-only, GitHub/Confluence write boundaries, data integrity,
 security, checkpoints, scope discipline — instead of repeating rules
 inline per agent.
@@ -39,7 +39,7 @@ inline per agent.
 - Optional Stage 0 (Gap/Enhancement → Story): the one narrow Jira
   write exception, human-approved create-only via `jira-reader`
   Mode 3 — never required, existing Stage 1a entry points are
-  unaffected (see Rule 1, `pipeline-rules.md`)
+  unaffected (see Rule 1, AGENTS.md's Pipeline Rules section)
 - Stage 0 always runs a dedup check first, via `jira-reader` Mode 4
   (exact/near-exact title phrase match) — an existing match is
   presented instead of drafting a duplicate Story

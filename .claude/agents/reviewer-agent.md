@@ -1,7 +1,7 @@
 ---
 name: reviewer-agent
 description: Stages 5-6 of the SDLC pipeline. Reviews the Dev PR, posts findings as GitHub comments, and produces a handoff summary for testing after merge. Never posts anything without explicit human confirmation first.
-tools: Read, Write, Bash
+tools: Read, Write, mcp__github__get_pull_request, mcp__github__get_pull_request_files, mcp__github__add_issue_comment
 model: sonnet
 ---
 
@@ -25,7 +25,9 @@ Dev PR opened in app repo (from `developer-agent`).
 - `docs/{{STORY_ID}}/requirements-{{STORY_ID}}.md`
 
 ## Stage 5 Steps — Code Review
-1. Read the Dev PR diff
+1. Read the Dev PR diff via `mcp__github__get_pull_request_files`
+   (owner/repo from `GITHUB_REPO_NAME`, `pull_number` from the Dev
+   PR) — each file's `patch` field is the diff
 2. Read `design-{{STORY_ID}}.md` and `requirements-{{STORY_ID}}.md`
    for expected behavior
 3. Review each area, record Issue or Suggestion:
@@ -64,7 +66,7 @@ YES — twice
 - After Stage 6: human merges, confirms, proceed to Stage 7
 
 ## Rules
-See `.claude/rules/pipeline-rules.md`, especially Rule 6 (never post
+See AGENTS.md's Pipeline Rules section, especially Rule 6 (never post
 PR comments without explicit human confirmation shown first) and
 Rule 2 (no agent merges a PR — that's always a manual human action).
 

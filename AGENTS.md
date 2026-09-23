@@ -8,14 +8,14 @@ this file, not those.
 > a separate, hand-maintained Copilot instructions file describing an
 > Agentic SDLC pipeline that a fleet of Claude/Copilot agents run
 > against Jira story `AISDLC-{{NUMBER}}` (see `.claude/agents/`,
-> `.claude/rules/pipeline-rules.md`, `.claude/config/pipeline-config.md`
+> the Pipeline Rules section below, and `.claude/config/pipeline-config.md`
 > for the authoritative pipeline definition). That file is intentionally
 > left untouched here — this `AGENTS.md` instead covers the underlying
 > **application** (the Smart Library Management System itself) that the
 > pipeline builds. If you're an agent asked to run a pipeline stage
 > (Jira lookup, requirements, planning, design, dev, review, deploy,
-> test, docs), read `.claude/rules/pipeline-rules.md` and
-> `.claude/agents/orchestrator-agent.md` first — those rules govern
+> test, docs), read the Pipeline Rules section below and
+> `.claude/commands/run-pipeline.md` first — those rules govern
 > pipeline behavior and take precedence over general app conventions
 > below when the two overlap.
 
@@ -64,7 +64,7 @@ frontend (no framework, no bundler). Single Express server on port
 
 Three tables only — **never introduce a fourth table or invent
 columns/endpoints beyond what's below** (this constraint is enforced
-pipeline-wide, see `pipeline-rules.md` Rule 4):
+pipeline-wide, see Pipeline Rules Rule 4 below):
 
 - **books** — `id`, `title`, `author`, `isbn` (unique index,
   `idx_books_isbn_unique`, created only if no duplicates already
@@ -137,6 +137,107 @@ npm run deploy:local    # extracts latest artifact into deploy/ and runs it (see
 
 See `BUILD.md` for the full build/deploy pipeline, including how
 database persistence works across redeployments.
+
+## Pipeline Rules
+
+Every agent and subagent in the Agentic SDLC pipeline (`.claude/agents/`,
+`.claude/skills/`) follows these numbered rules. They live here —
+not in a separate rules file — so a guardrail only ever needs to
+change in one place, and every agent/skill's own `## Rules` section
+just points back to this section by number.
+
+### 1. Jira — Read-Only, One Narrow Create Exception
+- Only `jira-agent` may call the project's `jira` MCP server
+  (`.mcp.json`, backed by `@aashari/mcp-server-atlassian-jira`), and
+  only via the `jira-reader` skill
+- `jira-reader` is GET-only (`mcp__jira__jira_get`) for browsing the
+  backlog or fetching a story (Modes 1-2, 4). The **only** write
+  action permitted anywhere in the pipeline is `jira-reader` Mode 3
+  — creating exactly one new Story issue via `mcp__jira__jira_post`,
+  from a human-approved title/description/acceptance criteria draft
+  (optional Stage 0, see `jira-agent.md`). No agent — `jira-agent`
+  included — may call `mcp__jira__jira_put`, `mcp__jira__jira_patch`,
+  or `mcp__jira__jira_delete`, ever, even though the MCP server
+  exposes those tools
+- If a stage would normally reflect a status change back to Jira
+  (e.g. "story now in development"), it must NOT do this
+  automatically — tell the human to update Jira manually if needed
+- No agent other than `jira-agent` may be granted the `mcp__jira__*`
+  tools or attempt to reach Jira directly
+- Stage 0 (create) is optional and additive — the existing Stage 1a
+  entry points (`/run-pipeline`, `/run-pipeline AISDLC-{{NUMBER}}`)
+  are unchanged and do not require it
+
+### 2. GitHub — Scoped Write Access
+- Only `git-committer` may commit/push (via local `git`, not the
+  MCP server); only `pr-creator` may open or update a PR (via the
+  project's `github` MCP server, `.mcp.json`, backed by
+  `@modelcontextprotocol/server-github`); only `pr-commenter` may
+  post PR comments (also via the `github` MCP server) — no agent
+  writes git history or calls `mcp__github__*` tools outside these
+  skills
+- No agent ever calls `mcp__github__merge_pull_request` or otherwise
+  merges a PR — merging is always a manual human action, confirmed
+  back to the agent in chat
+- No agent pushes directly to `main`/`GITHUB_DEFAULT_BRANCH` —
+  always via a feature branch per `pipeline-config.md` naming rules
+- Requirements/Design subagents never commit or open a PR (local
+  files only). Planner Subagent is the one exception: on APPROVE of
+  the plan, it may create the feature branch, commit the
+  already-approved requirements + plan docs, and open the one Dev PR
+  with a partial body — Developer Agent (Stage 4) reuses that same
+  branch/PR rather than opening a second one, and updates its body
+  once code exists — see `docs-agent.md` / `planner-subagent.md`
+
+### 3. Confluence — Two Named Pages, Scoped Space
+- Only `confluence-agent` and `design-subagent` may call
+  `confluence-publisher`, which talks to the project's `confluence`
+  MCP server (`.mcp.json`, backed by
+  `@aashari/mcp-server-atlassian-confluence`) via
+  `mcp__confluence__conf_get`/`conf_post`/`conf_put`
+- Each may only create or update its own one named page per story,
+  in space `AISDLC` — `confluence-agent`: the Batch Summary page;
+  `design-subagent`: the Design page — never call
+  `mcp__confluence__conf_delete`, never touch pages outside that
+  space or that don't match the story's title format
+
+### 4. Data Integrity — Never Invent
+- Every fact in a generated document must trace back to a real
+  source: a Jira API response, a file actually read, or a human's
+  answer in chat — never fabricated
+- If information is genuinely missing, mark it `[pending]` (or ask
+  the human) — never guess or fill a gap silently
+- App schema constraint: tables are only `books`, `members`,
+  `loans` — never invent additional tables, columns, or endpoints
+
+### 5. Security
+- Never hardcode credentials, tokens, or passwords in generated
+  code or docs — always read from environment variables
+- `.env` is never read into context, written to, or committed by
+  any skill (enforced in `file-writer` and `git-committer`)
+
+### 6. Checkpoints
+- Never skip a human checkpoint silently, even on a stage marked
+  skippable in `pipeline-config.md` — skipping still requires
+  explicit human confirmation, and gets logged in
+  `docs/{{STORY_ID}}/pipeline-log.md` with a note that it was
+  skipped
+- Nothing that posts or publishes externally (PR comments,
+  Confluence page) proceeds without the human seeing the exact
+  content first and confirming
+
+### 7. Scope Discipline
+- Each stage only touches the files it owns — e.g. Design Subagent
+  never edits `impl-plan-{{STORY_ID}}.md`, Developer Agent only
+  implements what's in the approved design/plan, not extra
+  "while I'm here" changes
+- A rejected checkpoint routes back to the agent that owns the
+  rejected file — it does not restart the whole pipeline
+- On REJECT: ask what specifically is wrong, then make a targeted
+  edit to just the affected section(s) — never regenerate an
+  entire document/review from scratch on a REJECT. This keeps
+  revisions fast and makes it obvious to the human what actually
+  changed between attempts.
 
 ## Known Documentation Drift
 
