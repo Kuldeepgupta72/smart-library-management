@@ -1,4 +1,12 @@
 {
+  "extraKnownMarketplaces": {
+    "eg-internal": {
+      "source": {
+        "source": "github",
+        "repo": "eg-internal/skills"
+      }
+    }
+  },
   "permissions": {
     "allow": [
       "Bash(while IFS='=' read -r key value; do*)",
