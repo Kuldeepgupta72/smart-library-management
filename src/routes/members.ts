@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/database';
-import { isValidEmail } from '../validators';
+import { isValidEmail, isDuplicateEmail } from '../validators';
 import { parsePagination } from '../utils/pagination';
 
 const router = Router();
@@ -45,23 +45,48 @@ router.get('/', (req: Request, res: Response) => {
 });
 
 router.post('/', (req: Request, res: Response) => {
-  const { name, email } = req.body as { name?: string; email?: string };
-  if (!name || !email) {
-    res.status(400).json({ error: 'Name and email are required' });
-    return;
+  try {
+    const { name, email } = req.body as { name?: string; email?: string };
+    if (!name || !email) {
+      res.status(400).json({ error: 'Name and email are required' });
+      return;
+    }
+    if (!isValidEmail(email)) {
+      res.status(400).json({ error: 'Invalid email format.' });
+      return;
+    }
+    // AISDLC-4: reject duplicate emails, mirroring POST /api/books'
+    // duplicate-ISBN rejection (409 + same response shape).
+    if (isDuplicateEmail(email)) {
+      res.status(409).json({ error: 'A member with this email already exists.' });
+      return;
+    }
+    const result = db.prepare(
+      'INSERT INTO members (name, email) VALUES (?, ?)'
+    ).run(name, email);
+    res.status(201).json({
+      id: Number(result.lastInsertRowid),
+      name,
+      email
+    });
+  } catch (err) {
+    // AISDLC-4 code-review fix: the isDuplicateEmail() pre-check above
+    // and the INSERT below are not atomic, so two concurrent POSTs
+    // with the same email can both pass the pre-check and race to
+    // insert. The losing INSERT throws idx_members_email_unique's raw
+    // SQLite constraint error here; detect that specific case by
+    // message and converge on the same 409 shape used by the
+    // pre-check above, so callers see identical behavior either way.
+    // Any other unexpected error falls through to a generic 500,
+    // matching the pattern used elsewhere in this file.
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes('UNIQUE constraint failed') && message.includes('members.email')) {
+      res.status(409).json({ error: 'A member with this email already exists.' });
+      return;
+    }
+    console.error('Failed to add member:', err);
+    res.status(500).json({ error: 'Failed to add member' });
   }
-  if (!isValidEmail(email)) {
-    res.status(400).json({ error: 'Invalid email format.' });
-    return;
-  }
-  const result = db.prepare(
-    'INSERT INTO members (name, email) VALUES (?, ?)'
-  ).run(name, email);
-  res.status(201).json({
-    id: Number(result.lastInsertRowid),
-    name,
-    email
-  });
 });
 
 export default router;
