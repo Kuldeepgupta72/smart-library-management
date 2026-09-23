@@ -3,6 +3,25 @@
 All notable changes to this project are recorded here, one entry per
 completed Agentic SDLC pipeline batch.
 
+## AISDLC-4 — Enforce email uniqueness on member creation — 2026-09-23
+
+- **Summary:** Added `isDuplicateEmail` duplicate-email check to
+  `POST /api/members`, backed by an additive/idempotent unique index
+  `idx_members_email_unique` on `members.email`, mirroring the existing
+  `isDuplicateIsbn`/`idx_books_isbn_unique` pattern for books. Returns
+  409 on duplicate email; wrapped in try/catch (added during code
+  review) to close a concurrent-insert race. No new tables, columns,
+  or endpoints. Separately fixed an unrelated stale-build bug in
+  `public/app.js` (PR #13) discovered while investigating test
+  failures.
+- **Dev PR:** #12 (implementation, merged), #13 (unrelated stale-build
+  fix, merged)
+- **Design Doc:** [Confluence](https://kuldeepgupta721990.atlassian.net/wiki/spaces/AISDLC/pages/25493505/AISDLC-4+-+Enforce+email+uniqueness+on+member+creation+-+Design)
+- **Test Automation PR:** #5 (test repo, merged)
+- **Test Results:** 5 passed, 0 failed, run in isolation (see `tests/evidence/test-run-AISDLC-4-20260923-133553.log`)
+- **Deployment:** Confirmed reachable at http://localhost:5050
+- **Batch Summary:** [Confluence](https://kuldeepgupta721990.atlassian.net/wiki/spaces/AISDLC/pages/25526273/AISDLC-4+-+Enforce+email+uniqueness+on+member+creation+-+Batch+Summary)
+
 ## AISDLC-3 — Add pagination to members list — 2026-09-18
 
 - **Summary:** Added `page`/`pageSize` query parameter pagination to
