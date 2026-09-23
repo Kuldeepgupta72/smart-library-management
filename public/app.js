@@ -174,9 +174,19 @@ function renderMembersTable(members) {
   `;
 }
 async function loadMembers() {
-    const res = await fetch('/api/members');
-    const members = await res.json();
-    renderMembersTable(members);
+    // AISDLC-3: GET /api/members now returns a paginated envelope
+    // ({ members, page, pageSize, total, totalPages }) instead of a
+    // flat array, mirroring GET /api/books. Request the max allowed
+    // pageSize (100, matching the server-side cap) so this page
+    // continues to show the full member list at a glance, same as
+    // the previous unpaginated behavior, without adding pagination
+    // controls to the UI (still out of scope for AISDLC-3). Members
+    // are ordered oldest-first (id ASC, unchanged), so without this
+    // the default pageSize=20 would hide any member beyond the first
+    // 20 rows once the table grows past that size.
+    const res = await fetch('/api/members?pageSize=100');
+    const data = await res.json();
+    renderMembersTable(data.members);
 }
 async function searchMembers(query) {
     const trimmed = query.trim();
@@ -213,11 +223,12 @@ async function loadAvailableBooksSelect() {
     }
 }
 async function loadMembersSelect() {
-    const res = await fetch('/api/members');
-    const members = await res.json();
+    const res = await fetch('/api/members?pageSize=100');
+    // AISDLC-3: same paginated-envelope change as loadMembers() above.
+    const data = await res.json();
     const select = document.getElementById('issue-member-select');
     select.innerHTML = '<option value="">-- Select a Member --</option>';
-    members.forEach(m => {
+    data.members.forEach(m => {
         const opt = document.createElement('option');
         opt.value = String(m.id);
         opt.textContent = m.name;
