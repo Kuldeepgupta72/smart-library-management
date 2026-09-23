@@ -68,6 +68,16 @@ export function initializeDatabase(): void {
   } else {
     db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_books_isbn_unique ON books(isbn)');
   }
+
+  // AISDLC-4: add unique index on members.email (skip if duplicates exist)
+  const duplicateEmails = db.prepare(
+    'SELECT email FROM members GROUP BY email HAVING COUNT(*) > 1'
+  ).all();
+  if (duplicateEmails.length > 0) {
+    console.warn('AISDLC-4: Duplicate emails found — skipping unique index creation:', duplicateEmails);
+  } else {
+    db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_members_email_unique ON members(email)');
+  }
 }
 
 export default db;

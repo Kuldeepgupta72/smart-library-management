@@ -36,3 +36,16 @@ export function isDuplicateIsbn(isbn: string, excludeId?: number): boolean {
 export function isValidEmail(email: string): boolean {
   return EMAIL_REGEX.test(email);
 }
+
+// AISDLC-4: exact structural mirror of isDuplicateIsbn above, for
+// members.email instead of books.isbn. excludeId is unused by the
+// current POST /api/members route (no update path exists yet) but
+// is included for future reuse, per the approved design.
+export function isDuplicateEmail(email: string, excludeId?: number): boolean {
+  if (excludeId !== undefined) {
+    const row = db.prepare('SELECT id FROM members WHERE email = ? AND id != ?').get(email, excludeId);
+    return row !== undefined;
+  }
+  const row = db.prepare('SELECT id FROM members WHERE email = ?').get(email);
+  return row !== undefined;
+}

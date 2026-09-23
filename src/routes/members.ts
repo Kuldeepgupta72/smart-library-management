@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db/database';
-import { isValidEmail } from '../validators';
+import { isValidEmail, isDuplicateEmail } from '../validators';
 import { parsePagination } from '../utils/pagination';
 
 const router = Router();
@@ -52,6 +52,12 @@ router.post('/', (req: Request, res: Response) => {
   }
   if (!isValidEmail(email)) {
     res.status(400).json({ error: 'Invalid email format.' });
+    return;
+  }
+  // AISDLC-4: reject duplicate emails, mirroring POST /api/books'
+  // duplicate-ISBN rejection (409 + same response shape).
+  if (isDuplicateEmail(email)) {
+    res.status(409).json({ error: 'A member with this email already exists.' });
     return;
   }
   const result = db.prepare(
