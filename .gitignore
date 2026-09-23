@@ -9,3 +9,6 @@ server_out.txt
 .env
 .env.local
 .idea/
+
+!.claude/CLAUDE.md
+!.claude/settings.json
