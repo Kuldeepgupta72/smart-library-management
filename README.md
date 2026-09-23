@@ -128,8 +128,6 @@ See [BUILD.md](BUILD.md) for details on packaging a build artifact and running i
 
 These gaps are deliberate — they may be addressed in a future enhancement phase:
 
-- No overdue detection or fines (due dates are tracked, but not enforced)
 - No authentication
 - No input validation beyond required-field, email-format, and ISBN-uniqueness checks
 - No reporting or analytics
-- No pagination

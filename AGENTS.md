@@ -241,9 +241,10 @@ just points back to this section by number.
 
 ## Known Documentation Drift
 
-`README.md`'s "Intentional Limitations" section is stale — it still
-lists "no overdue detection or fines" and "no pagination" as
-intentional gaps, but both have since been implemented (overdue
-detection + fines via the pipeline story `AISDLC-2`, pagination via
-`AISDLC-3`). Trust this file and the actual code over that section
-until README.md is updated.
+None currently known. `README.md`'s "Intentional Limitations" section
+previously listed "no overdue detection or fines" and "no pagination"
+as gaps after both had already been implemented (via pipeline stories
+`AISDLC-2` and `AISDLC-3` respectively) — that section has been
+corrected. Both Jira stories still show status "To Do" as of this
+writing; per Rule 1, no pipeline agent may transition them — update
+`AISDLC-2` and `AISDLC-3` to Done in Jira manually if desired.
